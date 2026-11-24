@@ -1,0 +1,14 @@
+# Source: Azure Retail Prices API (https://prices.azure.com/api/retail/prices),
+# region eastus2, regional deployment. Strings so they parse as exact decimals.
+
+checked_on: 2026-11-25
+currency: USD
+per_tokens: 1000000
+
+models:
+  gpt-4o-2024-11-20:
+    input: "2.75"
+    cached_input: "1.375"
+    output: "11.00"
+  text-embedding-3-small:
+    input: "0.022"

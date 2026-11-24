@@ -1,0 +1,102 @@
+# Unit suffixes: _s seconds, _ms milliseconds, _chars characters, _minor paise.
+
+events:
+  recent: 10
+event:
+  summary_chars: 200
+
+tickets:
+  page_size_default: 10
+  page_size_max: 25
+ticket:
+  summary_chars: 160
+  note_write_chars: 1000
+
+notes:
+  default: 5
+  max: 10
+note:
+  chars: 600
+
+runbooks:
+  top_k_default: 3
+  top_k_max: 5
+runbook:
+  chunk_chars: 1200
+
+policy:
+  section_chars: 2000
+search:
+  query_chars_min: 3
+  query_chars_max: 200
+refund:
+  reason_chars: 300
+tool:
+  result_bytes_max: 16384
+user:
+  message_chars: 2000
+
+rate:
+  calls_per_minute: 60
+  burst: 20
+
+timeout:
+  postgres_s: 3
+  blob_s: 5
+  search_s: 5
+  content_safety_s: 2
+  keyvault_s: 3
+  embeddings_s: 5
+retry:
+  max: 2
+  base_ms: 100
+breaker:
+  failures: 5
+  window_s: 30
+  half_open_after_s: 20
+bulkhead:
+  per_backend: 20
+
+approval:
+  token_ttl_s: 120
+  pending_ttl_self_s: 900
+  pending_ttl_supervisor_s: 86400
+  self_limit_minor: 500000
+goodwill:
+  premium:
+    min_delay_hours: 72
+    max_percent: 15
+  standard:
+    min_delay_hours: 120
+    max_percent: 10
+
+budget:
+  tool_calls: 15
+  model_turns: 8
+  tokens: 60000
+  wall_clock_s: 120
+token:
+  refresh_before_expiry_s: 300
+  clock_skew_s: 60
+health:
+  cache_s: 15
+retention:
+  copilot_days: 30
+
+inbox:
+  page_size: 25
+ui:
+  inbox_refresh_s: 15
+  refund_poll_s: 3
+  refund_poll_max_duration_s: 120
+  step_summary_chars: 300
+
+payments:
+  poll_interval_s: 2
+  claim_batch: 10
+  max_attempts: 5
+  backoff_base_s: 1
+  backoff_max_s: 30
+  http_timeout_s: 5
+sim:
+  settle_delay_s: 3
