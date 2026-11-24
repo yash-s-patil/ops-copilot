@@ -26,6 +26,11 @@ dist/
 # Node
 node_modules/
 .next/
+next-env.d.ts
+*.tsbuildinfo
+coverage/
+# Rewritten by `next dev` on every start
+apps/web/AGENTS.md
 .pnpm-store/
 playwright-report/
 test-results/

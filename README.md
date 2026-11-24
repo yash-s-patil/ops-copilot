@@ -12,13 +12,14 @@ services arrive phase by phase.
 
 ## Quick start
 
-Requires Docker, [uv](https://docs.astral.sh/uv/) and GNU Make.
+Requires Docker, [uv](https://docs.astral.sh/uv/), Node 24 with pnpm, and GNU Make.
 
 ```
 make install  # install the locked toolchain into .venv
 make dev      # start local PostgreSQL and Azurite
 make lint     # formatting, lint rules, secret scan on commit, strict type checking
-make test     # unit tests with coverage
+make test     # Python unit tests with coverage
+make test-web # web unit tests
 ```
 
 Run `make help` for every target.
@@ -29,6 +30,7 @@ Run `make help` for every target.
 |---|---|
 | `config/` | `limits.yaml` (every cap, timeout and threshold) and `pricing.yaml` |
 | `packages/opscp_common/` | Code shared by the services |
+| `apps/web/` | The web application (Next.js) |
 | `.github/workflows/` | Continuous integration |
 
 ## Licence
