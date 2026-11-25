@@ -25,13 +25,9 @@ variable "owner" {
 }
 
 variable "deployer_ip_cidrs" {
-  description = "Public IPv4 addresses or CIDR ranges allowed to reach the state storage. Azure Storage rejects /31 and /32, so give a single address without a suffix."
+  description = "Public IPv4 addresses or CIDR ranges allowed to reach the state storage during bootstrap. Azure Storage rejects /31 and /32, so give a single address without a suffix. Leave empty to disable public network access once state is reached through a private endpoint."
   type        = list(string)
-
-  validation {
-    condition     = length(var.deployer_ip_cidrs) > 0
-    error_message = "At least one deployer address is required, otherwise nothing can read the state."
-  }
+  default     = []
 
   validation {
     condition = alltrue([

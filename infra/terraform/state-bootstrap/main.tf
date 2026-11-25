@@ -27,7 +27,7 @@ resource "azurerm_resource_group" "state" {
 }
 
 resource "azurerm_storage_account" "state" {
-  # checkov:skip=CKV_AZURE_59: State is needed before any virtual network exists; access is limited to deployer addresses by network_rules.
+  # checkov:skip=CKV_AZURE_59: State is needed before any virtual network exists. Public access is limited to deployer_ip_cidrs and is disabled when that list is empty.
   # checkov:skip=CKV2_AZURE_33: Same reason; a private endpoint needs the network this state is used to create.
   # checkov:skip=CKV_AZURE_36: Trusted-service bypass is deliberately off; nothing but the deployer reads state.
   # checkov:skip=CKV2_AZURE_1: A customer-managed key needs a Key Vault, which is created from this state.
@@ -49,7 +49,7 @@ resource "azurerm_storage_account" "state" {
   allow_nested_items_to_be_public  = false
   cross_tenant_replication_enabled = false
 
-  public_network_access = "Enabled"
+  public_network_access = length(var.deployer_ip_cidrs) > 0 ? "Enabled" : "Disabled"
 
   network_rules {
     default_action = "Deny"
