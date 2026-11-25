@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev dev-down lint format test test-web secrets
+.PHONY: help install env dev dev-down dev-reset migrate lint format test test-integration test-web secrets
 
 WEB := pnpm --dir apps/web
 TF_DIR := infra/terraform
@@ -17,7 +17,8 @@ install: ## Install every workspace package and tool at the locked versions
 	$(WEB) install --frozen-lockfile
 
 .env:
-	@printf 'POSTGRES_PASSWORD=%s\n' "$$(openssl rand -hex 24)" > .env
+	@password="$$(openssl rand -hex 24)"; \
+		printf 'POSTGRES_PASSWORD=%s\nDATABASE_HOST=127.0.0.1\nDATABASE_NAME=meridian\nDATABASE_USER=migrator\nDATABASE_PASSWORD=%s\n' "$$password" "$$password" > .env
 	@chmod 600 .env
 	@echo "Created .env with a generated local database password."
 
@@ -28,6 +29,14 @@ dev: .env ## Start local PostgreSQL and Azurite and wait until both are healthy
 
 dev-down: ## Stop the local backends (data volumes are kept)
 	docker compose down
+
+dev-reset: ## Delete the local data volumes and .env, then start again from empty
+	docker compose down --volumes
+	rm -f .env
+	$(MAKE) dev
+
+migrate: .env ## Apply database migrations to the local meridian database
+	uv run --env-file $(CURDIR)/.env --directory services/mcp alembic upgrade head
 
 lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uv run pre-commit run --all-files
@@ -50,8 +59,11 @@ format: ## Apply formatting and safe lint fixes
 	$(WEB) run format
 	terraform fmt -recursive $(TF_DIR)
 
-test: ## Unit and contract tests with coverage (no cloud needed)
-	uv run pytest --cov
+test: ## Unit and contract tests with coverage (no backends needed)
+	uv run pytest --cov -m "not integration"
+
+test-integration: ## Tests against the local PostgreSQL started by `make dev`
+	uv run pytest -m integration
 
 test-web: ## Web unit tests
 	$(WEB) run test

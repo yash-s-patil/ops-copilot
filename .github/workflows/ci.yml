@@ -58,6 +58,12 @@ jobs:
       - name: Python tests
         run: make test
 
+      - name: Start local backends
+        run: make dev
+
+      - name: Database tests
+        run: make test-integration
+
       - name: Web tests
         run: make test-web
 
