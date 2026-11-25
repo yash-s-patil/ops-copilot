@@ -64,6 +64,9 @@ jobs:
       - name: Database tests
         run: make test-integration
 
+      - name: Migrate and seed the local database
+        run: make seed
+
       - name: Web tests
         run: make test-web
 

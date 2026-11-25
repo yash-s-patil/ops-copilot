@@ -1,0 +1,20 @@
+[project]
+name = "opscp-seed"
+version = "0.1.0"
+description = "Loads the deterministic Meridian Retail demo data."
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "asyncpg>=0.32.0",
+    "faker>=40.0.0",
+    "opscp-common",
+    "pydantic-settings>=2.16.3",
+    "sqlalchemy[asyncio]>=2.1.9",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+opscp-common = { workspace = true }
