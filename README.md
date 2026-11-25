@@ -18,11 +18,13 @@ Requires Docker, [uv](https://docs.astral.sh/uv/), Node 24 with pnpm, Terraform 
 make install  # install the locked toolchain into .venv
 make dev      # start local PostgreSQL and Azurite
 make lint     # formatting, lint rules, secret scan on commit, strict type checking
+make migrate  # apply database migrations locally
 make test     # Python unit tests with coverage
+make test-integration  # database tests against local PostgreSQL
 make test-web # web unit tests
 ```
 
-Run `make help` for every target.
+Run `make help` for every target. After pulling a change to the local database setup, run `make dev-reset`.
 
 ## Layout
 
@@ -30,6 +32,7 @@ Run `make help` for every target.
 |---|---|
 | `config/` | `limits.yaml` (every cap, timeout and threshold) and `pricing.yaml` |
 | `packages/opscp_common/` | Code shared by the services |
+| `services/mcp/` | The MCP server; currently its database migrations and security tests |
 | `apps/web/` | The web application (Next.js) |
 | `infra/terraform/state-bootstrap/` | One-off storage account for Terraform state |
 | `.github/workflows/` | Continuous integration |
