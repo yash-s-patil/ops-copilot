@@ -12,7 +12,7 @@ services arrive phase by phase.
 
 ## Quick start
 
-Requires Docker, [uv](https://docs.astral.sh/uv/), Node 24 with pnpm, and GNU Make.
+Requires Docker, [uv](https://docs.astral.sh/uv/), Node 24 with pnpm, Terraform 1.17, [tflint](https://github.com/terraform-linters/tflint) and GNU Make.
 
 ```
 make install  # install the locked toolchain into .venv
@@ -31,6 +31,7 @@ Run `make help` for every target.
 | `config/` | `limits.yaml` (every cap, timeout and threshold) and `pricing.yaml` |
 | `packages/opscp_common/` | Code shared by the services |
 | `apps/web/` | The web application (Next.js) |
+| `infra/terraform/state-bootstrap/` | One-off storage account for Terraform state |
 | `.github/workflows/` | Continuous integration |
 
 ## Licence

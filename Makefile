@@ -2,6 +2,9 @@
 .PHONY: help install env dev dev-down lint format test test-web secrets
 
 WEB := pnpm --dir apps/web
+TF_DIR := infra/terraform
+TF_ROOTS := $(TF_DIR)/state-bootstrap
+CHECKOV_VERSION := 3.4.10
 
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
@@ -32,11 +35,20 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	$(WEB) run lint
 	$(WEB) run typecheck
 	$(WEB) run format:check
+	terraform fmt -check -recursive $(TF_DIR)
+	@for root in $(TF_ROOTS); do \
+		terraform -chdir=$$root init -backend=false -input=false -lockfile=readonly > /dev/null && \
+		terraform -chdir=$$root validate || exit 1; \
+	done
+	tflint --chdir=$(TF_DIR) --init > /dev/null
+	tflint --chdir=$(TF_DIR) --recursive --config=$(CURDIR)/$(TF_DIR)/.tflint.hcl
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --directory $(TF_DIR) --framework terraform --quiet --compact
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .
 	uv run ruff check --fix .
 	$(WEB) run format
+	terraform fmt -recursive $(TF_DIR)
 
 test: ## Unit and contract tests with coverage (no cloud needed)
 	uv run pytest --cov
