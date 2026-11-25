@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "services/*"]
+members = ["jobs/*", "packages/*", "services/*"]
 
 [tool.ruff]
 line-length = 100
@@ -23,6 +23,7 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "TID252"]
+"jobs/seed/**" = ["S311"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -33,7 +34,7 @@ max-branches = 10
 max-args = 6
 
 [tool.ruff.lint.isort]
-known-first-party = ["opscp_common", "opscp_mcp"]
+known-first-party = ["opscp_common", "opscp_mcp", "opscp_seed"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -41,13 +42,13 @@ ban-relative-imports = "all"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["packages", "services"]
+include = ["jobs", "packages", "services"]
 exclude = ["**/.venv", "**/node_modules", "**/__pycache__"]
 reportMissingTypeStubs = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["packages", "services"]
+testpaths = ["jobs", "packages", "services"]
 addopts = [
     "--import-mode=importlib",
     "--strict-markers",
@@ -63,7 +64,7 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source_pkgs = ["opscp_common", "opscp_mcp"]
+source_pkgs = ["opscp_common", "opscp_mcp", "opscp_seed"]
 
 [tool.coverage.report]
 show_missing = true

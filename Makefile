@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev dev-down dev-reset migrate lint format test test-integration test-web secrets
+.PHONY: help install env dev dev-down dev-reset migrate seed lint format test test-integration test-web secrets
 
 WEB := pnpm --dir apps/web
 TF_DIR := infra/terraform
@@ -37,6 +37,9 @@ dev-reset: ## Delete the local data volumes and .env, then start again from empt
 
 migrate: .env ## Apply database migrations to the local meridian database
 	uv run --env-file $(CURDIR)/.env --directory services/mcp alembic upgrade head
+
+seed: migrate ## Replace the local meridian data with the deterministic demo data
+	uv run --env-file .env --env-file infra/local/seed.env python -m opscp_seed
 
 lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uv run pre-commit run --all-files

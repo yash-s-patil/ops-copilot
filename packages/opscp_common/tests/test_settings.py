@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from opscp_mcp.settings import DatabaseSettings
+from opscp_common.settings import DatabaseSettings
 
 _PASSWORD = "local-only"  # noqa: S105
 

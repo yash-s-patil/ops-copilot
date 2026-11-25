@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from opscp_mcp.settings import DatabaseSettings
+from opscp_common.settings import DatabaseSettings
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SERVICE_ROOT = Path(__file__).resolve().parents[2]

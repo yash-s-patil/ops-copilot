@@ -19,6 +19,7 @@ make install  # install the locked toolchain into .venv
 make dev      # start local PostgreSQL and Azurite
 make lint     # formatting, lint rules, secret scan on commit, strict type checking
 make migrate  # apply database migrations locally
+make seed     # load the deterministic demo data (replaces what is there)
 make test     # Python unit tests with coverage
 make test-integration  # database tests against local PostgreSQL
 make test-web # web unit tests

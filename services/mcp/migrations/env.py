@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from opscp_mcp.settings import DatabaseSettings
+from opscp_common.settings import DatabaseSettings
 
 if context.config.config_file_name is not None:
     fileConfig(context.config.config_file_name, disable_existing_loggers=False)
