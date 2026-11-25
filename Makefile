@@ -1,5 +1,7 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev dev-down lint format test secrets
+.PHONY: help install env dev dev-down lint format test test-web secrets
+
+WEB := pnpm --dir apps/web
 
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
@@ -9,6 +11,7 @@ help: ## List the available targets
 install: ## Install every workspace package and tool at the locked versions
 	uv sync --locked --all-packages
 	uv run pre-commit install
+	$(WEB) install --frozen-lockfile
 
 .env:
 	@printf 'POSTGRES_PASSWORD=%s\n' "$$(openssl rand -hex 24)" > .env
@@ -26,13 +29,20 @@ dev-down: ## Stop the local backends (data volumes are kept)
 lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uv run pre-commit run --all-files
 	uv run pyright
+	$(WEB) run lint
+	$(WEB) run typecheck
+	$(WEB) run format:check
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .
 	uv run ruff check --fix .
+	$(WEB) run format
 
 test: ## Unit and contract tests with coverage (no cloud needed)
 	uv run pytest --cov
+
+test-web: ## Web unit tests
+	$(WEB) run test
 
 secrets: ## Scan every commit for secrets
 	docker run --rm --volume "$(CURDIR)":/repo:ro \

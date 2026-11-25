@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  /* Removes Tailwind's built-in palette so only token colours can be used. */
+  --color-*: initial;
+  --color-canvas: var(--canvas);
+  --color-rail: var(--rail);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-wash: var(--accent-wash);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-ok-wash: var(--ok-wash);
+  --color-warn: var(--warn);
+  --color-warn-wash: var(--warn-wash);
+  --color-bad: var(--bad);
+  --color-bad-wash: var(--bad-wash);
+}
