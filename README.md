@@ -31,6 +31,8 @@ Run `make help` for every target. After pulling a change to the local database o
 
 Every tool call that reaches a tool, whether it succeeds, fails or is refused for lack of permission, appends one row to `audit.audit_log` and writes one log line with the same fields. Arguments are recorded with email addresses and phone numbers replaced by a hash and other text cut to 200 characters. Each row carries the hash of the row before it, so a changed or removed row is detectable: `make verify-audit` checks the chain. If the row cannot be written, the caller gets an error and not the result. Each person may make 60 requests a minute with a burst of 20; the next one is answered `RATE_LIMITED` with the seconds to wait, and is logged but not added to the audit log.
 
+Every call to PostgreSQL or Blob storage goes through a guard for that backend. It allows at most 20 calls in flight, gives each attempt a time limit, and retries a read up to twice, with a random and growing pause, when the failure is a lost connection, a `429` or a `5xx`. A write is never retried. After 5 failures in 30 seconds the guard's circuit breaker opens: calls are refused at once with `BACKEND_UNAVAILABLE` for 20 seconds, then one probe is let through, and its success closes the breaker. The breaker is kept per process, so each replica learns for itself. The resource `meridian://server/health`, readable by anyone with a role, reports each backend as `ok`, `recovering` or `unavailable` and lists the tools that cannot be relied on.
+
 ## Layout
 
 | Path | Contents |

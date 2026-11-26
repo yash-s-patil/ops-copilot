@@ -14,7 +14,7 @@ from opscp_mcp.authz.tokens import TokenIdentities
 from opscp_mcp.container import Services
 from opscp_mcp.middleware.visibility import Visibility
 from opscp_mcp.prompts import procedures
-from opscp_mcp.tools.orders import GET_ORDER
+from opscp_mcp.tools.names import GET_ORDER
 from opscp_mcp.tools.runner import SERVICES_KEY
 from opscp_mcp_testing.identities import PRIYA, SAM
 from opscp_mcp_testing.server import (
@@ -130,7 +130,7 @@ async def test_every_registered_component_declares_its_permission(limits: Limits
             + [prompt.name for prompt in await priya.list_prompts()]
         )
 
-    assert len(registered) == 11
+    assert len(registered) == 12
     assert sorted(shown) == sorted(registered)
 
 

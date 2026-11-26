@@ -24,3 +24,9 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
   answered `RATE_LIMITED` with `details.retry_after_seconds`.
 - A tool call fails with `INTERNAL` or `TIMEOUT` when its audit row cannot be written; the
   result is not returned.
+- Resource `meridian://server/health`: JSON `{backends, degraded}`. `backends` gives each of
+  `postgres` and `blob` as `ok`, `recovering` or `unavailable`; `degraded` lists the tools that
+  rely on a backend that is not `ok`. Readable with any role, and not counted by the rate limit.
+- A backend that fails repeatedly is answered for with `BACKEND_UNAVAILABLE` at once, without
+  being called, until it recovers. The message of `BACKEND_UNAVAILABLE` no longer names the
+  policy store, and a refusal from the store that waiting will not change is now `INTERNAL`.

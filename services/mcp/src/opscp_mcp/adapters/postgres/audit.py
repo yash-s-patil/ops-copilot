@@ -3,8 +3,9 @@
 import json
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 
+from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.ports.controls import AuditEntry
 
 _APPEND = text(
@@ -40,16 +41,19 @@ _COUNT = text("SELECT count(*) FROM audit.audit_log")
 
 
 class PostgresAuditTrail:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     async def record(self, entry: AuditEntry) -> int:
         row = entry.model_dump() | {
             "actor_roles": list(entry.actor_roles),
             "args_redacted": json.dumps(entry.args_redacted),
         }
-        async with self._engine.begin() as connection:
+
+        async def append(connection: AsyncConnection) -> int:
             return (await connection.execute(_APPEND, row)).scalar_one()
+
+        return await self._database.write(append)
 
 
 async def broken_links(connection: AsyncConnection, *, limit: int) -> tuple[int, list[int]]:

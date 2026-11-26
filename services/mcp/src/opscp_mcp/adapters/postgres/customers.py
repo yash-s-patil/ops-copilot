@@ -1,8 +1,8 @@
 from sqlalchemy import ColumnElement, func, select
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from opscp_common.vocabulary import OPEN_TICKET_STATUSES
-from opscp_mcp.adapters.postgres.session import read_as
+from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.tables import customers, tickets
 from opscp_mcp.ports.meridian import CustomerRecord, Scope
 
@@ -24,8 +24,8 @@ _CUSTOMER = select(
 
 
 class PostgresCustomers:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     async def by_id(self, scope: Scope, customer_id: int) -> CustomerRecord | None:
         return await self._one(scope, customers.c.id == customer_id)
@@ -34,6 +34,8 @@ class PostgresCustomers:
         return await self._one(scope, func.lower(customers.c.email) == func.lower(email))
 
     async def _one(self, scope: Scope, condition: ColumnElement[bool]) -> CustomerRecord | None:
-        async with read_as(self._engine, scope) as connection:
+        async def find(connection: AsyncConnection) -> CustomerRecord | None:
             row = (await connection.execute(_CUSTOMER.where(condition))).mappings().one_or_none()
-        return None if row is None else CustomerRecord.model_validate(dict(row))
+            return None if row is None else CustomerRecord.model_validate(dict(row))
+
+        return await self._database.read(scope, find)

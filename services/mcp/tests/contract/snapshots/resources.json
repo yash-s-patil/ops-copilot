@@ -19,5 +19,12 @@
     "name": "runbook-index",
     "title": "Runbook index",
     "uri": "meridian://runbooks/index"
+  },
+  {
+    "description": "The state of each system this server relies on (ok, recovering or unavailable) and the tools that cannot be relied on right now. Read it again rather than remembering it.",
+    "mime_type": "application/json",
+    "name": "server-health",
+    "title": "Server health",
+    "uri": "meridian://server/health"
   }
 ]

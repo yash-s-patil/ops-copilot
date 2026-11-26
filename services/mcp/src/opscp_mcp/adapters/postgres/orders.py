@@ -2,10 +2,10 @@ from datetime import datetime
 
 from pydantic import JsonValue
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from opscp_common.vocabulary import CARRIER_SCAN, REFUND_FAILED, SHIPPED, EventType
-from opscp_mcp.adapters.postgres.session import read_as
+from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.tables import order_events, orders, refunds
 from opscp_mcp.ports.meridian import EventRecord, OrderRecord, Scope
 
@@ -31,11 +31,11 @@ _NEWEST_FIRST = (order_events.c.occurred_at.desc(), order_events.c.id.desc())
 
 
 class PostgresOrders:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     async def get(self, scope: Scope, order_id: int, *, recent_events: int) -> OrderRecord | None:
-        async with read_as(self._engine, scope) as connection:
+        async def find(connection: AsyncConnection) -> OrderRecord | None:
             row = (
                 (await connection.execute(_ORDER.where(orders.c.id == order_id)))
                 .mappings()
@@ -50,6 +50,8 @@ class PostgresOrders:
                 recent_events=await _recent_events(connection, order_id, recent_events),
                 event_counts=await _event_counts(connection, order_id) if recent_events else {},
             )
+
+        return await self._database.read(scope, find)
 
 
 async def _recent_events(

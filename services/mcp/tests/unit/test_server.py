@@ -11,6 +11,7 @@ from opscp_common.errors import BackendUnavailableError, ErrorCode
 from opscp_common.limits import Limits
 from opscp_mcp.ports.meridian import OrderRecord, Scope
 from opscp_mcp.resources.reference import VERSION_KEY
+from opscp_mcp.services.health import HEALTH_URI
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.resources import (
     ORDER_LIFECYCLE_URI,
@@ -336,11 +337,15 @@ async def test_real_results_stay_well_inside_the_size_limit(
         assert 0 < size < limits.tool.result_bytes_max
 
 
-async def test_the_three_reference_resources_are_listed_as_plain_text(priya: TestClient) -> None:
+async def test_the_reference_resources_are_listed_as_plain_text_and_health_as_json(
+    priya: TestClient,
+) -> None:
     resources = await priya.list_resources()
 
-    assert [str(resource.uri) for resource in resources] == RESOURCES
-    assert {resource.mime_type for resource in resources} == {"text/plain"}
+    assert [(str(resource.uri), resource.mime_type) for resource in resources] == [
+        *((uri, "text/plain") for uri in RESOURCES),
+        (HEALTH_URI, "application/json"),
+    ]
     assert all(resource.description for resource in resources)
 
 

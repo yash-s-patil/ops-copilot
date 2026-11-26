@@ -20,6 +20,7 @@ from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.server import build_server
 from opscp_mcp.services.customers import CustomerService
+from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.resources import ReferenceService
@@ -66,6 +67,7 @@ def fake_services(identity: Identity, limits: Limits) -> Services:
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(FakePolicies.from_directory(POLICIES_DIR), limits),
         references=ReferenceService(runbooks, limits),
+        health=HealthService((), {}),
         clock=lambda: NOW,
         new_result_id=lambda: f"{next(numbers):04d}",
     )

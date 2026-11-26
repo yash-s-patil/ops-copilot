@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
-from opscp_mcp.adapters.blob import BlobPolicies
+from opscp_mcp.adapters.blob import BlobPolicies, classify
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail, broken_links
 from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
@@ -20,12 +20,14 @@ from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.main import build_app
 from opscp_mcp.services.customers import CustomerService
+from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
 from opscp_mcp_testing.cases.backend import Backend
+from opscp_mcp_testing.guards import a_guard
 from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA
 from opscp_mcp_testing.paths import RUNBOOKS_DIR
 from opscp_mcp_testing.server import (
@@ -47,7 +49,7 @@ from opscp_mcp_testing.world import (
     STUCK_ON_ADDRESS,
 )
 
-from .database import database_settings
+from .database import database_settings, guarded
 from .storage import scratch_policies
 
 pytestmark = pytest.mark.integration
@@ -82,21 +84,22 @@ def _services(
     engine: AsyncEngine,
 ) -> Services:
     runbooks = InMemoryRunbooks.from_directory(RUNBOOKS_DIR)
-    policies = BlobPolicies(
-        container, timeout_s=limits.timeout.blob_s, max_bytes=limits.policy.document_bytes
-    )
+    blob = a_guard("blob", classify=classify)
+    database = guarded(engine)
+    policies = BlobPolicies(container, blob, max_bytes=limits.policy.document_bytes)
     return Services(
         identities=Caller(identity),
         rates=PostgresRateLimiter(
-            engine, per_minute=limits.rate.calls_per_minute, burst=limits.rate.burst
+            database, per_minute=limits.rate.calls_per_minute, burst=limits.rate.burst
         ),
-        audit=PostgresAuditTrail(engine),
+        audit=PostgresAuditTrail(database),
         customers=CustomerService(backend.customers),
         orders=OrderService(backend.orders, limits, lambda: NOW),
         tickets=TicketService(backend.tickets, limits, lambda: NOW),
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(policies, limits),
         references=ReferenceService(runbooks, limits),
+        health=HealthService((blob,), {"blob": ("get_policy_document",)}),
     )
 
 

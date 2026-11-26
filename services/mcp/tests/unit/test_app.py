@@ -380,15 +380,19 @@ def test_the_database_connection_is_encrypted_and_verified_outside_local(
     environment: Environment, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     made: list[tuple[dict[str, object], bool]] = []
+    pools: list[dict[str, object]] = []
 
-    def record(url: object, *, hide_parameters: bool, connect_args: dict[str, object]) -> object:
+    def record(
+        url: object, *, hide_parameters: bool, connect_args: dict[str, object], **pool: object
+    ) -> object:
+        pools.append(pool)
         made.append((connect_args, hide_parameters))
         return object()
 
     monkeypatch.setattr(main, "create_async_engine", record)
 
-    database_engine(_database(), environment)
-    database_engine(_database(), "local")
+    database_engine(_database(), environment, 20)
+    database_engine(_database(), "local", 20)
 
     (deployed, _), (local, _) = made
     context = deployed["ssl"]
@@ -396,6 +400,7 @@ def test_the_database_connection_is_encrypted_and_verified_outside_local(
     assert (context.verify_mode, context.check_hostname) == (ssl.CERT_REQUIRED, True)
     assert local == {}
     assert [hidden for _, hidden in made] == [True, True]
+    assert pools == [{"pool_size": 21, "max_overflow": 0, "pool_pre_ping": True}] * 2
 
 
 @pytest.mark.usefixtures("configured")

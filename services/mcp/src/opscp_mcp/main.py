@@ -22,6 +22,7 @@ from opscp_mcp.settings import SERVICE_NAME, McpSettings
 from opscp_mcp.telemetry.logs import adopt_framework_logs
 
 MCP_PATH = "/mcp"
+_PROBE_CONNECTIONS = 1
 
 
 def build_app(
@@ -55,14 +56,26 @@ def build_app(
     return app
 
 
-def database_engine(database: DatabaseSettings, environment: Environment) -> AsyncEngine:
+def database_engine(
+    database: DatabaseSettings, environment: Environment, connections: int
+) -> AsyncEngine:
     """Outside local development the connection is encrypted and the server's name checked.
+
+    The pool holds a connection for every call that may be in flight, and one more for the
+    readiness probe, which must not wait behind them.
 
     The default context trusts the system's certificate authorities. The driver's own
     "verify-full" does not: it looks for a root certificate in the user's home directory.
     """
     encrypted = {} if environment == LOCAL else {"ssl": ssl.create_default_context()}
-    return create_async_engine(database.url(), hide_parameters=True, connect_args=encrypted)
+    return create_async_engine(
+        database.url(),
+        hide_parameters=True,
+        connect_args=encrypted,
+        pool_size=connections + _PROBE_CONNECTIONS,
+        max_overflow=0,
+        pool_pre_ping=True,
+    )
 
 
 def create_app() -> FastAPI:
@@ -73,7 +86,7 @@ def create_app() -> FastAPI:
     configure_logging(service=SERVICE_NAME, level=settings.log_level, json=settings.json_logs)
     adopt_framework_logs()
     limits = load_limits(settings.limits_file)
-    engine = database_engine(database, settings.environment)
+    engine = database_engine(database, settings.environment, limits.bulkhead.per_backend)
     sign_in = sign_in_with(settings.sign_in(), settings.mcp_public_url)
     return build_app(
         engine, production_services(settings, storage, limits, engine), limits, sign_in
