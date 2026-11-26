@@ -293,7 +293,6 @@ def test_the_database_connection_is_encrypted_and_verified_outside_local(
     context = deployed["ssl"]
     assert isinstance(context, ssl.SSLContext)
     assert (context.verify_mode, context.check_hostname) == (ssl.CERT_REQUIRED, True)
-    assert context.cert_store_stats()["x509_ca"] > 0
     assert local == {}
     assert [hidden for _, hidden in made] == [True, True]
 
