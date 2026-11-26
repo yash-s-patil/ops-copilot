@@ -1,0 +1,73 @@
+{
+  "APPROVAL_INVALID": {
+    "code": "APPROVAL_INVALID",
+    "details": {},
+    "message": "The approval is no longer valid.",
+    "retryable": false
+  },
+  "BACKEND_UNAVAILABLE": {
+    "code": "BACKEND_UNAVAILABLE",
+    "details": {},
+    "message": "The policy store is unavailable.",
+    "retryable": true
+  },
+  "IDEMPOTENCY_CONFLICT": {
+    "code": "IDEMPOTENCY_CONFLICT",
+    "details": {},
+    "message": "That key was used with different arguments.",
+    "retryable": false
+  },
+  "INTERNAL": {
+    "code": "INTERNAL",
+    "details": {},
+    "message": "Something went wrong on the server.",
+    "retryable": false
+  },
+  "NOT_FOUND": {
+    "code": "NOT_FOUND",
+    "details": {},
+    "message": "No order with that number is visible to you.",
+    "retryable": false
+  },
+  "PERMISSION_DENIED": {
+    "code": "PERMISSION_DENIED",
+    "details": {
+      "permission": "orders.read"
+    },
+    "message": "Your role does not allow this.",
+    "retryable": false
+  },
+  "POLICY_VIOLATION": {
+    "code": "POLICY_VIOLATION",
+    "details": {
+      "cap_minor": 93000,
+      "requested_minor": 620000
+    },
+    "message": "Goodwill refund exceeds the 15% cap.",
+    "retryable": false
+  },
+  "RATE_LIMITED": {
+    "code": "RATE_LIMITED",
+    "details": {
+      "retry_after_seconds": 7
+    },
+    "message": "Too many calls.",
+    "retryable": true
+  },
+  "TIMEOUT": {
+    "code": "TIMEOUT",
+    "details": {},
+    "message": "The request took too long. Try again.",
+    "retryable": true
+  },
+  "VALIDATION_FAILED": {
+    "code": "VALIDATION_FAILED",
+    "details": {
+      "fields": [
+        "order_id"
+      ]
+    },
+    "message": "The arguments do not match what this accepts.",
+    "retryable": false
+  }
+}

@@ -8,9 +8,11 @@ dependencies = [
     "alembic>=1.20.1",
     "asyncpg>=0.32.0",
     "azure-storage-blob[aio]>=12.20",
+    "fastapi>=0.133",
     "fastmcp>=4.2",
     "opscp-common[blob]",
     "sqlalchemy[asyncio]>=2.1.9",
+    "uvicorn>=0.54",
 ]
 
 [build-system]

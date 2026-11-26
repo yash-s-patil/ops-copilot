@@ -21,7 +21,7 @@ services:
     image: mcr.microsoft.com/azure-storage/azurite:3.38.0@sha256:c26024d62bf4a5b88a40968afd217234c00e1fc9a4790dc6105d1ca7979f6eec
     command: ["azurite-blob", "--blobHost", "0.0.0.0", "--location", "/data"]
     environment:
-      AZURITE_ACCOUNTS: ${AZURITE_ACCOUNTS:?Run `make env` to create .env first}
+      AZURITE_ACCOUNTS: ${AZURITE_ACCOUNTS:-}
     ports:
       - "127.0.0.1:10000:10000"
     volumes:
@@ -31,6 +31,31 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  mcp:
+    build:
+      context: .
+      dockerfile: services/mcp/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      DATABASE_HOST: postgres
+      DATABASE_NAME: meridian
+      DATABASE_USER: mcp_app
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Run `make env` to create .env first}
+      POLICIES_CONTAINER: ${POLICIES_CONTAINER:-}
+      BLOB_CONNECTION_STRING: ${BLOB_CONNECTION_STRING_IN_COMPOSE:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      azurite:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   postgres-data:

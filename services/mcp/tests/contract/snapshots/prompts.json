@@ -1,0 +1,36 @@
+[
+  {
+    "arguments": [
+      {
+        "description": "The order number.\n\nProvide a value matching the following JSON schema: {\"description\":\"The order number.\",\"type\":\"integer\"}. Encode non-string values as JSON.",
+        "name": "order_id",
+        "required": true
+      },
+      {
+        "description": "The ticket about the order, when known.\n\nProvide a value matching the following JSON schema: {\"anyOf\":[{\"type\":\"integer\"},{\"type\":\"null\"}],\"description\":\"The ticket about the order, when known.\"}. Encode non-string values as JSON.",
+        "name": "ticket_id",
+        "required": false
+      }
+    ],
+    "description": "The standard procedure for finding why an order is stuck and what to do.",
+    "name": "investigate_order",
+    "title": "Investigate an order"
+  },
+  {
+    "arguments": [
+      {
+        "description": "The ticket being answered.\n\nProvide a value matching the following JSON schema: {\"description\":\"The ticket being answered.\",\"type\":\"integer\"}. Encode non-string values as JSON.",
+        "name": "ticket_id",
+        "required": true
+      },
+      {
+        "description": "neutral, apologetic or firm.\n\nProvide a value matching the following JSON schema: {\"$defs\":{\"Tone\":{\"enum\":[\"neutral\",\"apologetic\",\"firm\"],\"type\":\"string\"}},\"$ref\":\"#/$defs/Tone\",\"description\":\"neutral, apologetic or firm.\"}. Encode non-string values as JSON.",
+        "name": "tone",
+        "required": true
+      }
+    ],
+    "description": "Meridian's voice rules and required statements for a reply to a customer.",
+    "name": "draft_customer_reply",
+    "title": "Draft a customer reply"
+  }
+]

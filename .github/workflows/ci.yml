@@ -58,10 +58,13 @@ jobs:
       - name: Python tests
         run: make test
 
-      - name: Start local backends
+      - name: Build and start the local backends and the MCP server
         run: make dev
 
-      - name: Database tests
+      - name: Smoke test the MCP server
+        run: make smoke
+
+      - name: Database and storage tests
         run: make test-integration
 
       - name: Migrate and seed the local database

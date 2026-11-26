@@ -1,10 +1,11 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev dev-down dev-reset migrate seed lint format test test-integration test-web secrets
+.PHONY: help install env dev smoke dev-down dev-reset migrate seed lint format test test-integration test-web secrets
 
 WEB := pnpm --dir apps/web
 TF_DIR := infra/terraform
 TF_ROOTS := $(TF_DIR)/state-bootstrap
 CHECKOV_VERSION := 3.4.10
+MCP_URL := http://127.0.0.1:8000
 
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
@@ -23,8 +24,13 @@ install: ## Install every workspace package and tool at the locked versions
 
 env: .env ## Create .env for local development if it does not exist
 
-dev: .env ## Start local PostgreSQL and Azurite and wait until both are healthy
-	docker compose up --detach --wait
+dev: .env ## Build and start PostgreSQL, Azurite and the MCP server, and wait until all are healthy
+	@uv run --no-project python infra/local/check_env.py
+	docker compose up --build --detach --wait
+
+smoke: ## Check that the local MCP server is up and can reach its database
+	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/healthz
+	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/readyz
 
 dev-down: ## Stop the local backends (data volumes are kept)
 	docker compose down
@@ -54,6 +60,7 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	tflint --chdir=$(TF_DIR) --init > /dev/null
 	tflint --chdir=$(TF_DIR) --recursive --config=$(CURDIR)/$(TF_DIR)/.tflint.hcl
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --directory $(TF_DIR) --framework terraform --quiet --compact
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/mcp/Dockerfile --framework dockerfile --quiet --compact
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .

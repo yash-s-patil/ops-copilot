@@ -1,0 +1,15 @@
+# Everything is left out unless an image needs it.
+*
+
+!pyproject.toml
+!uv.lock
+!config/limits.yaml
+!data/runbooks/*.md
+!packages/opscp_common/pyproject.toml
+!packages/opscp_common/src/**
+!services/mcp/pyproject.toml
+!services/mcp/src/**
+!jobs/seed/pyproject.toml
+
+**/__pycache__
+**/*.pyc
