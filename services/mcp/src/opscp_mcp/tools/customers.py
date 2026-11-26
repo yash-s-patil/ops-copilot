@@ -4,12 +4,14 @@ from fastmcp import Context, FastMCP
 from pydantic import Field
 
 from opscp_common.limits import Limits
+from opscp_mcp.authz.policy import Permission
 from opscp_mcp.services.customers import CustomerView
 from opscp_mcp.tools.models import ToolOutput
 from opscp_mcp.tools.runner import answer
 from opscp_mcp.tools.shared import READ_ONLY
 
 LOOKUP_CUSTOMER = "lookup_customer"
+REQUIRES = {LOOKUP_CUSTOMER: Permission.CUSTOMERS_READ}
 
 
 def register(server: FastMCP, limits: Limits) -> None:

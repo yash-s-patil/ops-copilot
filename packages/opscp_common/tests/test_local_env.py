@@ -17,6 +17,12 @@ VARIABLES = (
     "POLICIES_CONTAINER",
     "BLOB_CONNECTION_STRING",
     "BLOB_CONNECTION_STRING_IN_COMPOSE",
+    "AUTH_MODE",
+    "MCP_PUBLIC_URL",
+    "MCP_API_AUDIENCE",
+    "DEV_ISSUER",
+    "DEV_ISSUER_PUBLIC_KEY",
+    "DEV_ISSUER_PRIVATE_KEY",
 )
 
 
@@ -73,5 +79,6 @@ def test_every_run_generates_new_secrets(capsys: pytest.CaptureFixture[str]) -> 
     first, second = _values(_generate(capsys)), _values(_generate(capsys))
 
     assert first["POSTGRES_PASSWORD"] != second["POSTGRES_PASSWORD"]
+    assert first["DEV_ISSUER_PRIVATE_KEY"] != second["DEV_ISSUER_PRIVATE_KEY"]
     assert first["AZURITE_ACCOUNTS"] != second["AZURITE_ACCOUNTS"]
     assert first["POSTGRES_PASSWORD"] == first["DATABASE_PASSWORD"]

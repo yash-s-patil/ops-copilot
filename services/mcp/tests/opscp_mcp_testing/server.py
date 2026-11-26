@@ -12,7 +12,7 @@ from fastmcp.client.client import CallToolResult
 from fastmcp.client.transports import FastMCPTransport
 from mcp.types import TextContent, TextResourceContents
 
-from opscp_common.errors import ErrorBody
+from opscp_common.errors import ErrorBody, PermissionDeniedError
 from opscp_common.hashing import JsonValue
 from opscp_common.limits import Limits
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
@@ -39,6 +39,13 @@ class Caller:
 
     def current(self) -> Identity:
         return self._identity
+
+
+class SignedOut:
+    """A request that reached the server with no verified caller."""
+
+    def current(self) -> Identity:
+        raise PermissionDeniedError("Sign in to use this server.")
 
 
 def fake_services(identity: Identity, limits: Limits) -> Services:

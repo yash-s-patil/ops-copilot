@@ -3,6 +3,7 @@
 from fastmcp import Context, FastMCP
 from fastmcp.resources import ResourceContent, ResourceResult
 
+from opscp_mcp.authz.policy import Permission
 from opscp_mcp.services.resources import (
     ORDER_LIFECYCLE_URI,
     REFUND_SUMMARY_URI,
@@ -13,6 +14,11 @@ from opscp_mcp.tools.runner import services_of
 
 VERSION_KEY = "opscp/version"
 _PLAIN_TEXT = "text/plain"
+REQUIRES = {
+    ORDER_LIFECYCLE_URI: Permission.ORDERS_READ,
+    REFUND_SUMMARY_URI: Permission.POLICIES_READ,
+    RUNBOOK_INDEX_URI: Permission.RUNBOOKS_READ,
+}
 
 
 def _result(reference: Reference) -> ResourceResult:

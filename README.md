@@ -27,7 +27,7 @@ make test-web # web unit tests
 
 Run `make help` for every target. After pulling a change to the local database or storage setup, run `make dev-reset`.
 
-`make dev` serves the MCP server at `http://127.0.0.1:8000/mcp`, with `/healthz` and `/readyz` beside it. It publishes six read tools, three resources and two prompts. Sign-in is not built yet, so the running server recognises nobody and refuses every call; the tests exercise the tools as each kind of engineer.
+`make dev` serves the MCP server at `http://127.0.0.1:8000/mcp`, with `/healthz` and `/readyz` beside it. It publishes six read tools, three resources and two prompts. Every request needs a bearer token issued for this server; without one the answer is `401` and a pointer to `/.well-known/oauth-protected-resource/mcp`. Locally the sign-in service is replaced by a signing key that `make env` generates into `.env`: `make token WHO=priya` prints a token for one of the five demo users (`priya`, `rohan`, `arjun`, `kavita`, `sam`), and `make smoke` checks that each is shown only their own tools. A server started with that local sign-in refuses to run outside `ENVIRONMENT=local`.
 
 ## Layout
 

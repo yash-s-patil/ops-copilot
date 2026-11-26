@@ -5,10 +5,13 @@ from contextlib import asynccontextmanager
 from importlib.metadata import version
 
 from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
 
 from opscp_common.limits import Limits
+from opscp_mcp.authz.policy import Permission
 from opscp_mcp.container import OpenServices, Services
 from opscp_mcp.middleware.envelope import Envelope
+from opscp_mcp.middleware.visibility import Visibility
 from opscp_mcp.prompts import procedures
 from opscp_mcp.resources import reference
 from opscp_mcp.tools import customers, knowledge, orders, tickets
@@ -24,7 +27,23 @@ INSTRUCTIONS = (
 )
 
 
-def build_server(open_services: OpenServices, limits: Limits) -> FastMCP:
+def _declared_permissions() -> dict[str, Permission]:
+    """What each tool, resource and prompt needs, by name. Names must not collide."""
+    declared: dict[str, Permission] = {}
+    for module in (customers, orders, tickets, knowledge, reference, procedures):
+        if declared.keys() & module.REQUIRES.keys():
+            raise ValueError(
+                "Two components share a name, so one would borrow the other's permission"
+            )
+        declared |= module.REQUIRES
+    return declared
+
+
+def build_server(
+    open_services: OpenServices, limits: Limits, sign_in: AuthProvider | None = None
+) -> FastMCP:
+    """Without `sign_in` the server has no network door: it is for in-process callers only."""
+
     @asynccontextmanager
     async def lifespan(_server: FastMCP) -> AsyncGenerator[dict[str, Services]]:
         async with open_services() as services:
@@ -35,7 +54,11 @@ def build_server(open_services: OpenServices, limits: Limits) -> FastMCP:
         version=version(DISTRIBUTION),
         instructions=INSTRUCTIONS,
         lifespan=lifespan,
-        middleware=[Envelope(limits.tool.result_bytes_max)],
+        auth=sign_in,
+        middleware=[
+            Envelope(limits.tool.result_bytes_max),
+            Visibility(_declared_permissions()),
+        ],
         mask_error_details=True,
         strict_input_validation=True,
     )

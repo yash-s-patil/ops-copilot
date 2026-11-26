@@ -12,6 +12,10 @@ from opscp_mcp.tools.runner import services_of
 
 INVESTIGATE_ORDER = "investigate_order"
 DRAFT_CUSTOMER_REPLY = "draft_customer_reply"
+REQUIRES = {
+    INVESTIGATE_ORDER: Permission.ORDERS_READ,
+    DRAFT_CUSTOMER_REPLY: Permission.TICKETS_READ,
+}
 
 
 def register(server: FastMCP) -> None:
@@ -27,7 +31,7 @@ def register(server: FastMCP) -> None:
             int | None, Field(description="The ticket about the order, when known.")
         ] = None,
     ) -> str:
-        services_of(ctx).identities.current().require(Permission.ORDERS_READ)
+        services_of(ctx).identities.current().require(REQUIRES[INVESTIGATE_ORDER])
         return prompts.investigate_order(order_id, ticket_id)
 
     @server.prompt(
@@ -40,5 +44,5 @@ def register(server: FastMCP) -> None:
         ticket_id: Annotated[int, Field(description="The ticket being answered.")],
         tone: Annotated[Tone, Field(description="neutral, apologetic or firm.")],
     ) -> str:
-        services_of(ctx).identities.current().require(Permission.TICKETS_READ)
+        services_of(ctx).identities.current().require(REQUIRES[DRAFT_CUSTOMER_REPLY])
         return prompts.draft_customer_reply(ticket_id, tone)
