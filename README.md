@@ -19,13 +19,13 @@ make install  # install the locked toolchain into .venv
 make dev      # start local PostgreSQL and Azurite
 make lint     # formatting, lint rules, secret scan on commit, strict type checking
 make migrate  # apply database migrations locally
-make seed     # load the deterministic demo data (replaces what is there)
+make seed     # load the deterministic demo data and upload the policy documents (replaces what is there)
 make test     # Python unit tests with coverage
-make test-integration  # database tests against local PostgreSQL
+make test-integration  # tests against local PostgreSQL and Azurite
 make test-web # web unit tests
 ```
 
-Run `make help` for every target. After pulling a change to the local database setup, run `make dev-reset`.
+Run `make help` for every target. After pulling a change to the local database or storage setup, run `make dev-reset`.
 
 ## Layout
 
@@ -33,7 +33,9 @@ Run `make help` for every target. After pulling a change to the local database s
 |---|---|
 | `config/` | `limits.yaml` (every cap, timeout and threshold) and `pricing.yaml` |
 | `packages/opscp_common/` | Code shared by the services |
-| `services/mcp/` | The MCP server; currently its database migrations and security tests |
+| `services/mcp/` | The MCP server; currently its migrations and the services behind the read tools |
+| `jobs/seed/` | Loads the demo data and uploads the policy documents |
+| `data/` | The runbooks and policy documents the assistant reads |
 | `apps/web/` | The web application (Next.js) |
 | `infra/terraform/state-bootstrap/` | One-off storage account for Terraform state |
 | `.github/workflows/` | Continuous integration |

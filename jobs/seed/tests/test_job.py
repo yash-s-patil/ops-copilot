@@ -14,7 +14,10 @@ async def test_seeding_is_refused_when_the_database_is_not_the_named_target() ->
         {"host": "prod.internal", "name": "meridian", "user": "migrator", "password": "unused"}
     )
     settings = SeedSettings(
-        target_host="127.0.0.1", limits_file=Path("unused.yaml"), demo=DEMO_USERS
+        target_host="127.0.0.1",
+        limits_file=Path("unused.yaml"),
+        policies_dir=Path("unused"),
+        demo=DEMO_USERS,
     )
 
     with pytest.raises(WrongTargetError, match=r"prod\.internal.*127\.0\.0\.1"):

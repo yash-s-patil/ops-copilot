@@ -23,4 +23,5 @@ class SeedSettings(BaseSettings):
 
     target_host: str
     limits_file: Path
+    policies_dir: Path
     demo: DemoUsers

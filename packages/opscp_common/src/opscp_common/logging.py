@@ -9,6 +9,8 @@ from structlog.typing import EventDict, Processor, WrappedLogger
 
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
+_AZURE_SDK = "azure"
+
 
 def _stamp(service: str) -> Processor:
     def add_service(_logger: WrappedLogger, _method: str, event: EventDict) -> EventDict:
@@ -48,3 +50,6 @@ def configure_logging(*, service: str, level: LogLevel, json: bool) -> None:
         )
     )
     logging.basicConfig(handlers=[handler], level=level, force=True)
+    logging.getLogger(_AZURE_SDK).setLevel(
+        max(logging.WARNING, logging.getLevelNamesMapping()[level])
+    )

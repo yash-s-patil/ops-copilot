@@ -6,8 +6,9 @@ license = "Apache-2.0"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "asyncpg>=0.32.0",
+    "azure-storage-blob[aio]>=12.20",
     "faker>=40.0.0",
-    "opscp-common",
+    "opscp-common[blob]",
     "pydantic-settings>=2.16.3",
     "sqlalchemy[asyncio]>=2.1.9",
 ]
