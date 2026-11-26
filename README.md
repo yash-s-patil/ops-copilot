@@ -29,6 +29,8 @@ Run `make help` for every target. After pulling a change to the local database o
 
 `make dev` serves the MCP server at `http://127.0.0.1:8000/mcp`, with `/healthz` and `/readyz` beside it. It publishes six read tools, three resources and two prompts. Every request needs a bearer token issued for this server; without one the answer is `401` and a pointer to `/.well-known/oauth-protected-resource/mcp`. Locally the sign-in service is replaced by a signing key that `make env` generates into `.env`: `make token WHO=priya` prints a token for one of the five demo users (`priya`, `rohan`, `arjun`, `kavita`, `sam`), and `make smoke` checks that each is shown only their own tools. A server started with that local sign-in refuses to run outside `ENVIRONMENT=local`.
 
+Every tool call that reaches a tool, whether it succeeds, fails or is refused for lack of permission, appends one row to `audit.audit_log` and writes one log line with the same fields. Arguments are recorded with email addresses and phone numbers replaced by a hash and other text cut to 200 characters. Each row carries the hash of the row before it, so a changed or removed row is detectable: `make verify-audit` checks the chain. If the row cannot be written, the caller gets an error and not the result. Each person may make 60 requests a minute with a burst of 20; the next one is answered `RATE_LIMITED` with the seconds to wait, and is logged but not added to the audit log.
+
 ## Layout
 
 | Path | Contents |

@@ -155,14 +155,19 @@ async def test_a_tool_name_the_caller_made_up_is_not_written_to_the_log(
 
     assert body.code is ErrorCode.NOT_FOUND
     assert CUSTOMER_EMAIL not in body.model_dump_json()
-    assert logs == [
-        {
-            "event": "request_refused",
-            "log_level": "info",
-            "during": "an unknown tool",
-            "code": "NOT_FOUND",
-        }
-    ]
+    audit, refused = logs
+    assert (audit["event"], audit["target"], audit["args_redacted"]) == (
+        "audit",
+        "an unknown tool",
+        {},
+    )
+    assert refused == {
+        "event": "request_refused",
+        "log_level": "info",
+        "during": "an unknown tool",
+        "code": "NOT_FOUND",
+    }
+    assert CUSTOMER_EMAIL not in json.dumps(logs)
 
 
 async def test_argument_values_are_not_written_to_the_log(priya: TestClient) -> None:

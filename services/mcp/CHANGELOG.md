@@ -20,3 +20,7 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
 - `tools/list`, `resources/list` and `prompts/list` show a caller only what their role may use.
   A call to something hidden is still answered `PERMISSION_DENIED`.
 - A request that carries an `Origin` header is answered `403`: no web page is a caller.
+- Rate limit. A tool call, resource read or prompt beyond 60 a minute per person (burst 20) is
+  answered `RATE_LIMITED` with `details.retry_after_seconds`.
+- A tool call fails with `INTERNAL` or `TIMEOUT` when its audit row cannot be written; the
+  result is not returned.

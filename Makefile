@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev token smoke dev-down dev-reset migrate seed lint format test test-integration test-web secrets
+.PHONY: help install env dev token smoke verify-audit dev-down dev-reset migrate seed lint format test test-integration test-web secrets
 
 WEB := pnpm --dir apps/web
 TF_DIR := infra/terraform
@@ -51,6 +51,9 @@ migrate: .env ## Apply database migrations to the local meridian database
 
 seed: migrate ## Replace the local meridian data with the demo data and upload the policies
 	uv run --env-file .env --env-file infra/local/seed.env python -m opscp_seed
+
+verify-audit: .env ## Check that the local audit log was not changed or cut
+	uv run --env-file .env python scripts/verify-audit-chain.py
 
 lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uv run pre-commit run --all-files

@@ -39,6 +39,7 @@ APPENDIX_A: dict[str, dict[str, Any]] = {
     },
     "user": {"message_chars": 2000},
     "rate": {"calls_per_minute": 60, "burst": 20},
+    "audit": {"text_chars": 200},
     "timeout": {
         "postgres_s": 3,
         "blob_s": 5,

@@ -13,17 +13,15 @@ from fastmcp.resources import Resource, ResourceTemplate
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 from fastmcp.tools import Tool
 
-from opscp_common.errors import InternalError, PermissionDeniedError
+from opscp_common.errors import PermissionDeniedError
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.authz.policy import Permission
-from opscp_mcp.tools.runner import services_of
+from opscp_mcp.tools.runner import services_in
 
 
 def _caller(request: Context | None) -> Identity | None:
-    if request is None:
-        raise InternalError
     try:
-        return services_of(request).identities.current()
+        return services_in(request).identities.current()
     except PermissionDeniedError:
         return None
 
