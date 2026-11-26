@@ -95,6 +95,17 @@ class ToolLimits(_Group):
     result_bytes_max: PositiveInt
 
 
+class ToolTimeoutLimits(_Group):
+    lookup_customer_s: PositiveInt
+    get_order_s: PositiveInt
+    list_tickets_s: PositiveInt
+    get_ticket_s: PositiveInt
+    search_runbooks_s: PositiveInt
+    get_policy_document_s: PositiveInt
+    update_ticket_s: PositiveInt
+    issue_refund_s: PositiveInt
+
+
 class UserLimits(_Group):
     message_chars: PositiveInt
 
@@ -207,6 +218,7 @@ class Limits(_Group):
     search: SearchLimits
     refund: RefundLimits
     tool: ToolLimits
+    tool_timeout: ToolTimeoutLimits
     user: UserLimits
     rate: RateLimits
     timeout: TimeoutLimits

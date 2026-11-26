@@ -24,6 +24,16 @@ APPENDIX_A: dict[str, dict[str, Any]] = {
     "search": {"query_chars_min": 3, "query_chars_max": 200},
     "refund": {"reason_chars": 300},
     "tool": {"result_bytes_max": 16384},
+    "tool_timeout": {
+        "lookup_customer_s": 3,
+        "get_order_s": 3,
+        "list_tickets_s": 3,
+        "get_ticket_s": 3,
+        "search_runbooks_s": 6,
+        "get_policy_document_s": 5,
+        "update_ticket_s": 5,
+        "issue_refund_s": 5,
+    },
     "user": {"message_chars": 2000},
     "rate": {"calls_per_minute": 60, "burst": 20},
     "timeout": {
