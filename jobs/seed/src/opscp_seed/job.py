@@ -27,7 +27,7 @@ async def seed(database: DatabaseSettings, settings: SeedSettings) -> Dataset:
     dataset = build_dataset(
         now=datetime.now(UTC), limits=load_limits(settings.limits_file), demo=settings.demo
     )
-    engine = create_async_engine(database.url(), poolclass=pool.NullPool)
+    engine = create_async_engine(database.url(), poolclass=pool.NullPool, hide_parameters=True)
     try:
         async with engine.begin() as connection:
             await load(connection, dataset)

@@ -1,23 +1,24 @@
 import asyncio
-import logging
+import sys
 
+import structlog
+
+from opscp_common.logging import configure_logging
 from opscp_common.settings import DatabaseSettings
 from opscp_seed.job import seed
 from opscp_seed.settings import SeedSettings
 
-_LOG = logging.getLogger("opscp_seed")
-
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    configure_logging(service="seed", level="INFO", json=not sys.stderr.isatty())
     dataset = asyncio.run(seed(DatabaseSettings(), SeedSettings()))  # pyright: ignore[reportCallIssue] -- fields come from the environment
-    _LOG.info(
-        "Seeded %d customers, %d orders, %d order events, %d tickets, %d ticket notes.",
-        len(dataset.customers),
-        len(dataset.orders),
-        len(dataset.events),
-        len(dataset.tickets),
-        len(dataset.notes),
+    structlog.get_logger().info(
+        "seeded",
+        customers=len(dataset.customers),
+        orders=len(dataset.orders),
+        order_events=len(dataset.events),
+        tickets=len(dataset.tickets),
+        ticket_notes=len(dataset.notes),
     )
 
 
