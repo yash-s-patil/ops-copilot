@@ -5,6 +5,7 @@ import logging
 FRAMEWORK = "fastmcp"
 REQUEST_RUNNER = "fastmcp.server.server"
 TRANSPORT = "mcp.server.streamable_http"
+EVENT_STREAM = "sse_starlette"
 
 _REPORTED_BY_THE_ENVELOPE = (
     "Error calling tool",
@@ -31,7 +32,11 @@ class OneReportPerFailure(logging.Filter):
 
 
 def adopt_framework_logs() -> None:
-    """Call after logging is configured, and after the framework has been imported."""
+    """Call after logging is configured, and after the framework has been imported.
+
+    The transport and the event-stream library write requests and whole responses at debug
+    level, so both are held at warning whatever level the server is given.
+    """
     framework = logging.getLogger(FRAMEWORK)
     for handler in framework.handlers[:]:
         framework.removeHandler(handler)
@@ -39,4 +44,5 @@ def adopt_framework_logs() -> None:
     runner = logging.getLogger(REQUEST_RUNNER)
     if not any(isinstance(existing, OneReportPerFailure) for existing in runner.filters):
         runner.addFilter(OneReportPerFailure())
-    logging.getLogger(TRANSPORT).setLevel(logging.WARNING)
+    for quiet in (TRANSPORT, EVENT_STREAM):
+        logging.getLogger(quiet).setLevel(logging.WARNING)

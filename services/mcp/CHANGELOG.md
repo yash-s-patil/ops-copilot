@@ -14,3 +14,9 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
 - Prompts `investigate_order` and `draft_customer_reply`.
 - One error body for every failure: `{code, message, retryable, details}`, returned as the text
   of a result with `isError` set.
+- Sign-in. The MCP endpoint answers `401` with a `WWW-Authenticate` header unless the request
+  carries a bearer token issued for this server with the scope `Mcp.Access`. Where to get one is
+  published at `/.well-known/oauth-protected-resource/mcp`.
+- `tools/list`, `resources/list` and `prompts/list` show a caller only what their role may use.
+  A call to something hidden is still answered `PERMISSION_DENIED`.
+- A request that carries an `Origin` header is answered `403`: no web page is a caller.

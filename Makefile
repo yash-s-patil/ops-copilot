@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install env dev smoke dev-down dev-reset migrate seed lint format test test-integration test-web secrets
+.PHONY: help install env dev token smoke dev-down dev-reset migrate seed lint format test test-integration test-web secrets
 
 WEB := pnpm --dir apps/web
 TF_DIR := infra/terraform
@@ -19,8 +19,8 @@ install: ## Install every workspace package and tool at the locked versions
 
 .env:
 	@rm -f .env.new
-	@umask 077 && uv run --no-project python infra/local/make_env.py > .env.new && mv .env.new .env
-	@echo "Created .env with a generated local database password and storage key."
+	@umask 077 && uv run python infra/local/make_env.py > .env.new && mv .env.new .env
+	@echo "Created .env with a generated local database password, storage key and signing key."
 
 env: .env ## Create .env for local development if it does not exist
 
@@ -28,9 +28,15 @@ dev: .env ## Build and start PostgreSQL, Azurite and the MCP server, and wait un
 	@uv run --no-project python infra/local/check_env.py
 	docker compose up --build --detach --wait
 
-smoke: ## Check that the local MCP server is up and can reach its database
+token: .env ## Print a local sign-in token for a demo user: make token WHO=priya
+	@uv run --no-project python infra/local/check_env.py
+	@uv run --env-file .env python infra/local/dev_token.py $(WHO)
+
+smoke: .env ## Check that the local MCP server is up, reaches its database and knows who is calling
+	@uv run --no-project python infra/local/check_env.py
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/healthz
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/readyz
+	uv run --env-file .env python infra/local/smoke.py $(MCP_URL)
 
 dev-down: ## Stop the local backends (data volumes are kept)
 	docker compose down

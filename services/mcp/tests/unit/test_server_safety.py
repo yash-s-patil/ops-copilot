@@ -1,16 +1,18 @@
 """What the server must never do, whoever is asking and whatever they send."""
 
+import contextlib
 import json
 from collections.abc import AsyncGenerator
 from typing import Any
 
 import pytest
 import structlog
+from fastmcp.client.client import CallToolResult
 from fastmcp.exceptions import McpError
 
 from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
-from opscp_mcp.authz.identity import NoIdentities
+from opscp_mcp.authz.identity import Identity
 from opscp_mcp.ports.meridian import OrderRecord, Scope
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.resources import (
@@ -18,8 +20,9 @@ from opscp_mcp.services.resources import (
     REFUND_SUMMARY_URI,
     RUNBOOK_INDEX_URI,
 )
-from opscp_mcp_testing.identities import PRIYA, SAM
+from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA, ROHAN, SAM
 from opscp_mcp_testing.server import (
+    SignedOut,
     TestClient,
     call,
     call_with,
@@ -54,7 +57,7 @@ async def priya(limits: Limits) -> AsyncGenerator[TestClient]:
 
 @pytest.fixture
 async def nobody(limits: Limits) -> AsyncGenerator[TestClient]:
-    async with connected(server_for(PRIYA, limits, identities=NoIdentities())) as client:
+    async with connected(server_for(PRIYA, limits, identities=SignedOut())) as client:
         yield client
 
 
@@ -63,6 +66,42 @@ async def test_the_valid_calls_cover_every_tool_and_prompt(priya: TestClient) ->
     assert {prompt.name for prompt in await priya.list_prompts()} == set(VALID_PROMPTS)
     for tool, arguments in VALID_CALLS.items():
         assert not (await call_with(priya, tool, arguments)).is_error
+
+
+def _is_denial(result: CallToolResult) -> bool:
+    return result.is_error and error_of(result).code is ErrorCode.PERMISSION_DENIED
+
+
+@pytest.mark.parametrize("identity", [PRIYA, ROHAN, ARJUN, KAVITA, SAM], ids=lambda i: i.name)
+async def test_a_caller_is_shown_exactly_what_they_would_not_be_refused(
+    limits: Limits, identity: Identity
+) -> None:
+    """The list and the services are written separately, so they are checked against each other."""
+
+    async def permitted(client: TestClient) -> set[str]:
+        allowed = {
+            tool
+            for tool, arguments in VALID_CALLS.items()
+            if not _is_denial(await call_with(client, tool, arguments))
+        }
+        for uri in RESOURCES:
+            with contextlib.suppress(McpError):
+                await client.read_resource(uri)
+                allowed.add(uri)
+        for prompt, arguments in VALID_PROMPTS.items():
+            with contextlib.suppress(McpError):
+                await client.get_prompt(prompt, arguments)
+                allowed.add(prompt)
+        return allowed
+
+    async with connected(server_for(identity, limits)) as client:
+        shown = (
+            {tool.name for tool in await client.list_tools()}
+            | {str(resource.uri) for resource in await client.list_resources()}
+            | {prompt.name for prompt in await client.list_prompts()}
+        )
+
+        assert shown == await permitted(client)
 
 
 @pytest.mark.parametrize("tool", VALID_CALLS)

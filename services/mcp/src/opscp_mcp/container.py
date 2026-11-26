@@ -16,7 +16,8 @@ from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
 from opscp_mcp.adapters.postgres.customers import PostgresCustomers
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
 from opscp_mcp.adapters.postgres.tickets import PostgresTickets
-from opscp_mcp.authz.identity import IdentityResolver, NoIdentities
+from opscp_mcp.authz.identity import IdentityResolver
+from opscp_mcp.authz.tokens import TokenIdentities
 from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
@@ -64,7 +65,7 @@ def production_services(
                 max_bytes=limits.policy.document_bytes,
             )
             yield Services(
-                identities=NoIdentities(),
+                identities=TokenIdentities(),
                 customers=CustomerService(PostgresCustomers(engine)),
                 orders=OrderService(PostgresOrders(engine), limits, utc_now),
                 tickets=TicketService(PostgresTickets(engine), limits, utc_now),

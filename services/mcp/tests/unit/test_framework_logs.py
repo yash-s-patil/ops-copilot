@@ -11,6 +11,7 @@ from opscp_common.limits import Limits
 from opscp_common.logging import configure_logging
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.telemetry.logs import (
+    EVENT_STREAM,
     FRAMEWORK,
     REQUEST_RUNNER,
     TRANSPORT,
@@ -82,6 +83,23 @@ def test_the_framework_logs_through_the_one_handler() -> None:
 
     assert (framework.handlers, framework.propagate) == ([], True)
     assert logging.getLogger(TRANSPORT).getEffectiveLevel() == logging.WARNING
+
+
+def test_libraries_that_log_whole_responses_stay_quiet_at_debug_level() -> None:
+    quiet = [logging.getLogger(name) for name in (TRANSPORT, EVENT_STREAM)]
+    before = [logger.level for logger in quiet]
+    configure_logging(service="mcp", level="DEBUG", json=True)
+    adopt_framework_logs()
+
+    try:
+        assert [logger.isEnabledFor(logging.INFO) for logger in quiet] == [False, False]
+        assert logging.getLogger("sse_starlette.sse").getEffectiveLevel() == logging.WARNING
+    finally:
+        for logger, level in zip(quiet, before, strict=True):
+            logger.setLevel(level)
+        structlog.reset_defaults()
+        logging.basicConfig(handlers=[logging.NullHandler()], level=logging.WARNING, force=True)
+        logging.getLogger("azure").setLevel(logging.NOTSET)
 
 
 @pytest.mark.usefixtures("production_log")

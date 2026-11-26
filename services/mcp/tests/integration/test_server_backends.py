@@ -34,6 +34,7 @@ from opscp_mcp_testing.server import (
     fake_services,
     server_with,
 )
+from opscp_mcp_testing.signin import dev_sign_in
 from opscp_mcp_testing.world import (
     ASHA,
     AWAITING_SUPERVISOR,
@@ -129,7 +130,7 @@ def test_the_process_is_ready_when_the_database_answers(limits: Limits) -> None:
     async def open_services() -> AsyncGenerator[Services]:
         yield fake_services(PRIYA, limits)
 
-    with TestClient(build_app(engine, open_services, limits)) as http:
+    with TestClient(build_app(engine, open_services, limits, dev_sign_in())) as http:
         response = http.get("/readyz")
 
     assert (response.status_code, response.json()) == (200, {"status": "ok"})

@@ -4,6 +4,7 @@ from fastmcp import Context, FastMCP
 from pydantic import Field
 
 from opscp_common.limits import Limits
+from opscp_mcp.authz.policy import Permission
 from opscp_mcp.services.policies import PolicyName, PolicyView
 from opscp_mcp.services.runbooks import RunbookSearchResult
 from opscp_mcp.tools.models import ToolOutput
@@ -12,6 +13,10 @@ from opscp_mcp.tools.shared import READ_ONLY, UNTRUSTED_TEXT
 
 SEARCH_RUNBOOKS = "search_runbooks"
 GET_POLICY_DOCUMENT = "get_policy_document"
+REQUIRES = {
+    SEARCH_RUNBOOKS: Permission.RUNBOOKS_READ,
+    GET_POLICY_DOCUMENT: Permission.POLICIES_READ,
+}
 
 
 def register(server: FastMCP, limits: Limits) -> None:
