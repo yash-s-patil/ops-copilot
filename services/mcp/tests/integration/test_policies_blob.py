@@ -1,34 +1,25 @@
 from collections.abc import AsyncGenerator
-from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from azure.storage.blob.aio import ContainerClient
 
-from opscp_common.blob import policies_container
 from opscp_common.errors import InternalError
 from opscp_common.limits import Limits
-from opscp_common.settings import LOCAL, StorageSettings
-from opscp_mcp.adapters.blob import POLICY_EXTENSION, BlobPolicies
+from opscp_mcp.adapters.blob import BlobPolicies
 from opscp_mcp.ports.knowledge import Policies
 from opscp_mcp_testing.cases.policies import PolicyCases
-from opscp_mcp_testing.paths import POLICIES_DIR, REPO_ROOT
+from opscp_mcp_testing.paths import POLICIES_DIR
+
+from .storage import NOT_TEXT, scratch_policies
 
 pytestmark = pytest.mark.integration
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def container() -> AsyncGenerator[ContainerClient]:
-    local = StorageSettings(_env_file=REPO_ROOT / ".env")  # pyright: ignore[reportCallIssue] -- fields come from the env file
-    assert local.environment == LOCAL
-    scratch = local.model_copy(update={"policies_container": f"mcp-test-{uuid4().hex[:12]}"})
-    async with policies_container(scratch) as client:
-        await client.create_container()
-        for path in POLICIES_DIR.glob(f"*{POLICY_EXTENSION}"):
-            await client.upload_blob(path.name, path.read_bytes())
-        await client.upload_blob("not-text.md", b"\xff\xfe\x00binary")
+    async with scratch_policies() as client:
         yield client
-        await client.delete_container()
 
 
 @pytest.fixture
@@ -54,7 +45,7 @@ async def test_a_document_that_is_not_stored_reads_as_none(policies: Policies) -
 
 async def test_a_stored_blob_that_is_not_text_is_a_server_fault(policies: Policies) -> None:
     with pytest.raises(InternalError):
-        await policies.read("not-text")
+        await policies.read(NOT_TEXT)
 
 
 async def test_a_stored_document_over_the_size_limit_is_refused(

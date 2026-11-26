@@ -1,0 +1,23 @@
+[
+  {
+    "description": "Order statuses, the moves allowed between them, and when an order is stuck.",
+    "mime_type": "text/plain",
+    "name": "order-lifecycle",
+    "title": "Order lifecycle",
+    "uri": "meridian://reference/order-lifecycle"
+  },
+  {
+    "description": "The refund rules in brief, with the policy section that holds each in full.",
+    "mime_type": "text/plain",
+    "name": "refund-summary",
+    "title": "Refund rules in brief",
+    "uri": "meridian://policy/refund/summary"
+  },
+  {
+    "description": "The id, title and one-line summary of every runbook.",
+    "mime_type": "text/plain",
+    "name": "runbook-index",
+    "title": "Runbook index",
+    "uri": "meridian://runbooks/index"
+  }
+]

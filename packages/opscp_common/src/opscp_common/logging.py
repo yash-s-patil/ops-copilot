@@ -36,7 +36,6 @@ def configure_logging(*, service: str, level: LogLevel, json: bool) -> None:
         processors=[*shared, structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         wrapper_class=structlog.stdlib.BoundLogger,
         logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
     )
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(

@@ -1,5 +1,6 @@
 """Who is calling, as established from their token."""
 
+from typing import Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -29,3 +30,19 @@ class Identity(BaseModel):
             raise PermissionDeniedError(
                 "Your role does not allow this.", permission=permission.value
             )
+
+
+class IdentityResolver(Protocol):
+    def current(self) -> Identity:
+        """The verified caller of the request being handled.
+
+        Raises PermissionDeniedError when the request carries no verified identity.
+        """
+        ...
+
+
+class NoIdentities:
+    """Used until sign-in is configured: nobody is recognised, so every call is refused."""
+
+    def current(self) -> Identity:
+        raise PermissionDeniedError("This server has no sign-in configured, so it serves nobody.")

@@ -1,0 +1,58 @@
+"""The reference resources. Each read reports the version of the text it returns."""
+
+from fastmcp import Context, FastMCP
+from fastmcp.resources import ResourceContent, ResourceResult
+
+from opscp_mcp.services.resources import (
+    ORDER_LIFECYCLE_URI,
+    REFUND_SUMMARY_URI,
+    RUNBOOK_INDEX_URI,
+    Reference,
+)
+from opscp_mcp.tools.runner import services_of
+
+VERSION_KEY = "opscp/version"
+_PLAIN_TEXT = "text/plain"
+
+
+def _result(reference: Reference) -> ResourceResult:
+    meta = {VERSION_KEY: reference.version}
+    return ResourceResult(
+        contents=[ResourceContent(content=reference.text, mime_type=_PLAIN_TEXT, meta=meta)],
+        meta=meta,
+    )
+
+
+def register(server: FastMCP) -> None:
+    @server.resource(
+        ORDER_LIFECYCLE_URI,
+        name="order-lifecycle",
+        title="Order lifecycle",
+        description="Order statuses, the moves allowed between them, and when an order is stuck.",
+        mime_type=_PLAIN_TEXT,
+    )
+    async def order_lifecycle(ctx: Context) -> ResourceResult:
+        services = services_of(ctx)
+        return _result(services.references.order_lifecycle(services.identities.current()))
+
+    @server.resource(
+        REFUND_SUMMARY_URI,
+        name="refund-summary",
+        title="Refund rules in brief",
+        description="The refund rules in brief, with the policy section that holds each in full.",
+        mime_type=_PLAIN_TEXT,
+    )
+    async def refund_summary(ctx: Context) -> ResourceResult:
+        services = services_of(ctx)
+        return _result(services.references.refund_summary(services.identities.current()))
+
+    @server.resource(
+        RUNBOOK_INDEX_URI,
+        name="runbook-index",
+        title="Runbook index",
+        description="The id, title and one-line summary of every runbook.",
+        mime_type=_PLAIN_TEXT,
+    )
+    async def runbook_index(ctx: Context) -> ResourceResult:
+        services = services_of(ctx)
+        return _result(await services.references.runbook_index(services.identities.current()))
