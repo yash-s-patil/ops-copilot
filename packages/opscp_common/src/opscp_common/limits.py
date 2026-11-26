@@ -70,6 +70,7 @@ class NoteLimits(_Group):
 class RunbooksLimits(_Group):
     top_k_default: PositiveInt
     top_k_max: PositiveInt
+    index_max: PositiveInt
 
     @model_validator(mode="after")
     def _default_within_max(self) -> Self:
@@ -79,10 +80,12 @@ class RunbooksLimits(_Group):
 
 class RunbookLimits(_Group):
     chunk_chars: PositiveInt
+    chunk_bytes: PositiveInt
 
 
 class PolicyLimits(_Group):
     section_chars: PositiveInt
+    document_bytes: PositiveInt
 
 
 class SearchLimits(_Group):

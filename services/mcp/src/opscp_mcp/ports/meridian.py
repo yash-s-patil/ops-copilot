@@ -21,20 +21,17 @@ from opscp_common.vocabulary import (
     TicketStatus,
     Tier,
 )
+from opscp_mcp.ports.base import Record
 
 
-class _Record(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class Scope(_Record):
+class Scope(Record):
     """Whose rows a read may see. Every read is made inside exactly one scope."""
 
     user_oid: UUID
     region: CallerRegion
 
 
-class CustomerRecord(_Record):
+class CustomerRecord(Record):
     id: int
     full_name: str
     email: str
@@ -45,13 +42,13 @@ class CustomerRecord(_Record):
     open_ticket_count: int
 
 
-class EventRecord(_Record):
+class EventRecord(Record):
     type: EventType
     occurred_at: datetime
     payload: dict[str, JsonValue]
 
 
-class OrderRecord(_Record):
+class OrderRecord(Record):
     id: int
     customer_id: int
     status: OrderStatus
@@ -85,7 +82,7 @@ class RefundArguments(_StoredJson):
     reason_code: RefundReason
 
 
-class RefundRequestRecord(_Record):
+class RefundRequestRecord(Record):
     """A refund above the self-approval limit that has been asked for and not yet carried out."""
 
     status: RequestStatus
@@ -96,7 +93,7 @@ class RefundRequestRecord(_Record):
     reason_code: RefundReason
 
 
-class RefundRecord(_Record):
+class RefundRecord(Record):
     id: int
     status: RefundStatus
     amount_minor: int
@@ -107,7 +104,7 @@ class RefundRecord(_Record):
     failure_reason: str | None
 
 
-class TicketRecord(_Record):
+class TicketRecord(Record):
     id: int
     order_id: int
     customer_id: int
@@ -127,19 +124,19 @@ class TicketRecord(_Record):
     latest_refund: RefundRecord | None
 
 
-class NoteRecord(_Record):
+class NoteRecord(Record):
     author_kind: AuthorKind
     author_name: str
     body: str
     created_at: datetime
 
 
-class TicketWithNotes(_Record):
+class TicketWithNotes(Record):
     ticket: TicketRecord
     notes: tuple[NoteRecord, ...]
 
 
-class TicketFilter(_Record):
+class TicketFilter(Record):
     """Every condition that is set must hold."""
 
     statuses: frozenset[TicketStatus] | None = None
@@ -153,14 +150,14 @@ class TicketFilter(_Record):
     """A refund is waiting for a supervisor and was asked for by somebody else."""
 
 
-class TicketPosition(_Record):
+class TicketPosition(Record):
     """Where a page ended, in the fixed order of ticket lists: newest update first."""
 
     updated_at: AwareDatetime
     id: int
 
 
-class TicketPageRequest(_Record):
+class TicketPageRequest(Record):
     matching: TicketFilter | None
     """None lists nothing; the counts are still made."""
     after: TicketPosition | None
@@ -169,7 +166,7 @@ class TicketPageRequest(_Record):
     count_cap: int
 
 
-class TicketPageRecord(_Record):
+class TicketPageRecord(Record):
     tickets: tuple[TicketRecord, ...]
     counts: dict[str, int]
 

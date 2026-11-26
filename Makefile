@@ -17,10 +17,9 @@ install: ## Install every workspace package and tool at the locked versions
 	$(WEB) install --frozen-lockfile
 
 .env:
-	@password="$$(openssl rand -hex 24)"; \
-		printf 'POSTGRES_PASSWORD=%s\nDATABASE_HOST=127.0.0.1\nDATABASE_NAME=meridian\nDATABASE_USER=migrator\nDATABASE_PASSWORD=%s\n' "$$password" "$$password" > .env
-	@chmod 600 .env
-	@echo "Created .env with a generated local database password."
+	@rm -f .env.new
+	@umask 077 && uv run --no-project python infra/local/make_env.py > .env.new && mv .env.new .env
+	@echo "Created .env with a generated local database password and storage key."
 
 env: .env ## Create .env for local development if it does not exist
 
@@ -38,7 +37,7 @@ dev-reset: ## Delete the local data volumes and .env, then start again from empt
 migrate: .env ## Apply database migrations to the local meridian database
 	uv run --env-file $(CURDIR)/.env --directory services/mcp alembic upgrade head
 
-seed: migrate ## Replace the local meridian data with the deterministic demo data
+seed: migrate ## Replace the local meridian data with the demo data and upload the policies
 	uv run --env-file .env --env-file infra/local/seed.env python -m opscp_seed
 
 lint: ## Formatting, lint rules, repository hygiene and strict type checking
@@ -65,7 +64,7 @@ format: ## Apply formatting and safe lint fixes
 test: ## Unit and contract tests with coverage (no backends needed)
 	uv run pytest --cov -m "not integration"
 
-test-integration: ## Tests against the local PostgreSQL started by `make dev`
+test-integration: ## Tests against the local PostgreSQL and Azurite started by `make dev`
 	uv run pytest -m integration
 
 test-web: ## Web unit tests

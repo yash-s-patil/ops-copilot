@@ -7,19 +7,36 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, TypeAdapter
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PositiveInt, TypeAdapter
 
 RUNBOOK_SECTIONS = ("symptoms", "checks", "resolution", "compensation", "escalation")
 SUMMARY_MAX_CHARS = 160
+TITLE_MAX_CHARS = 120
+SECTION_ID_MAX_CHARS = 40
+POLICY_SECTIONS_MAX = 20
+RUNBOOK_ID_PATTERN = r"^rb-[0-9]{3}$"
+SECTION_ID_PATTERN = r"^[a-z][a-z0-9-]*$"
 
 _FRONT_MATTER = re.compile(r"\A---\n(?P<meta>.*?)\n---\n(?P<body>.*)\Z", re.DOTALL)
 _HEADING_LINE = re.compile(r"^##[ \t]+(?P<text>\S[^\n]*)$", re.MULTILINE)
 _HEADING_ID = re.compile(r"[a-z][a-z0-9-]*")
 _ID_OPEN, _ID_CLOSE = "{#", "}"
-_FRONT_MATTER_FIELDS = TypeAdapter(dict[str, Any])
+_QUIET = ConfigDict(hide_input_in_errors=True)
+_FRONT_MATTER_FIELDS = TypeAdapter(dict[str, Any], config=_QUIET)
 
+
+def one_line(value: str) -> str:
+    """No line breaks, control or invisible characters, and no space at either end."""
+    if not value or not value.isprintable() or value != value.strip():
+        raise ValueError("must be one line of printable text")
+    return value
+
+
+OneLine = AfterValidator(one_line)
 Text = Annotated[str, Field(min_length=1)]
-Summary = Annotated[str, Field(max_length=SUMMARY_MAX_CHARS, pattern=r"^\w[^\n]*$")]
+Title = Annotated[str, Field(max_length=TITLE_MAX_CHARS), OneLine]
+SectionId = Annotated[str, Field(max_length=SECTION_ID_MAX_CHARS, pattern=SECTION_ID_PATTERN)]
+Summary = Annotated[str, Field(max_length=SUMMARY_MAX_CHARS, pattern=r"^\w"), OneLine]
 
 
 class DocumentFormatError(ValueError):
@@ -27,12 +44,12 @@ class DocumentFormatError(ValueError):
 
 
 class _Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True, hide_input_in_errors=True)
 
 
 class Section(_Model):
-    id: Text
-    title: Text
+    id: SectionId
+    title: Title
     content: Text
 
 
@@ -41,19 +58,19 @@ class PolicySection(Section):
 
 
 class Runbook(_Model):
-    id: Annotated[str, Field(pattern=r"^rb-[0-9]{3}$")]
-    title: Text
+    id: Annotated[str, Field(pattern=RUNBOOK_ID_PATTERN)]
+    title: Title
     summary: Summary
     version: PositiveInt
     updated: date
-    sections: tuple[Section, ...]
+    sections: Annotated[tuple[Section, ...], Field(min_length=1)]
 
 
 class PolicyDocument(_Model):
     name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*$")]
     version: PositiveInt
     effective_date: date
-    sections: tuple[PolicySection, ...]
+    sections: Annotated[tuple[PolicySection, ...], Field(max_length=POLICY_SECTIONS_MAX)]
 
 
 def _split(text: str) -> tuple[dict[str, Any], str]:
@@ -64,6 +81,8 @@ def _split(text: str) -> tuple[dict[str, Any], str]:
         loaded = yaml.safe_load(match["meta"])
     except yaml.YAMLError as error:
         raise DocumentFormatError(f"the front matter is not valid YAML: {error}") from error
+    except RecursionError as error:
+        raise DocumentFormatError("the front matter is nested too deeply") from error
     return _FRONT_MATTER_FIELDS.validate_python(loaded, strict=True), match["body"]
 
 

@@ -30,11 +30,14 @@ note:
 runbooks:
   top_k_default: 3
   top_k_max: 5
+  index_max: 60
 runbook:
   chunk_chars: 1200
+  chunk_bytes: 2400
 
 policy:
   section_chars: 2000
+  document_bytes: 262144
 search:
   query_chars_min: 3
   query_chars_max: 200

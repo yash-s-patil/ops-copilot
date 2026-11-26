@@ -20,6 +20,8 @@ services:
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:3.38.0@sha256:c26024d62bf4a5b88a40968afd217234c00e1fc9a4790dc6105d1ca7979f6eec
     command: ["azurite-blob", "--blobHost", "0.0.0.0", "--location", "/data"]
+    environment:
+      AZURITE_ACCOUNTS: ${AZURITE_ACCOUNTS:?Run `make env` to create .env first}
     ports:
       - "127.0.0.1:10000:10000"
     volumes:
