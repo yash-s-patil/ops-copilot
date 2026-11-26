@@ -138,6 +138,10 @@ class RateLimits(_Group):
     burst: PositiveInt
 
 
+class AuditLimits(_Group):
+    text_chars: PositiveInt
+
+
 class TimeoutLimits(_Group):
     postgres_s: PositiveInt
     blob_s: PositiveInt
@@ -247,6 +251,7 @@ class Limits(_Group):
     tool_timeout: ToolTimeoutLimits
     user: UserLimits
     rate: RateLimits
+    audit: AuditLimits
     timeout: TimeoutLimits
     retry: RetryLimits
     breaker: BreakerLimits

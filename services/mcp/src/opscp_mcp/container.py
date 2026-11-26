@@ -13,11 +13,14 @@ from opscp_common.limits import Limits
 from opscp_common.settings import StorageSettings
 from opscp_mcp.adapters.blob import BlobPolicies
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
+from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail
 from opscp_mcp.adapters.postgres.customers import PostgresCustomers
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
+from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.adapters.postgres.tickets import PostgresTickets
 from opscp_mcp.authz.identity import IdentityResolver
 from opscp_mcp.authz.tokens import TokenIdentities
+from opscp_mcp.ports.controls import AuditTrail, RateLimiter
 from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
@@ -42,6 +45,8 @@ def new_result_id() -> str:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Services:
     identities: IdentityResolver
+    rates: RateLimiter
+    audit: AuditTrail
     customers: CustomerService
     orders: OrderService
     tickets: TicketService
@@ -66,6 +71,10 @@ def production_services(
             )
             yield Services(
                 identities=TokenIdentities(),
+                rates=PostgresRateLimiter(
+                    engine, per_minute=limits.rate.calls_per_minute, burst=limits.rate.burst
+                ),
+                audit=PostgresAuditTrail(engine),
                 customers=CustomerService(PostgresCustomers(engine)),
                 orders=OrderService(PostgresOrders(engine), limits, utc_now),
                 tickets=TicketService(PostgresTickets(engine), limits, utc_now),

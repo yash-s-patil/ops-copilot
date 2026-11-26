@@ -1,18 +1,21 @@
 """The server over the real adapters: PostgreSQL for records, Blob storage for policies."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 import pytest
 import pytest_asyncio
 from azure.storage.blob.aio import ContainerClient
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
 from opscp_mcp.adapters.blob import BlobPolicies
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
+from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail, broken_links
+from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.main import build_app
@@ -49,6 +52,11 @@ from .storage import scratch_policies
 
 pytestmark = pytest.mark.integration
 
+_LATEST = text(
+    "SELECT target, outcome, error_code, actor_oid, actor_roles, written_by "
+    "FROM audit.audit_log ORDER BY id OFFSET :after"
+)
+
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
 async def container() -> AsyncGenerator[ContainerClient]:
@@ -56,8 +64,22 @@ async def container() -> AsyncGenerator[ContainerClient]:
         yield client
 
 
+type RealServices = Callable[[Identity], Services]
+
+
+@pytest.fixture
+def real(
+    backend: Backend, container: ContainerClient, limits: Limits, mcp_app: AsyncEngine
+) -> RealServices:
+    return lambda identity: _services(identity, backend, container, limits, mcp_app)
+
+
 def _services(
-    identity: Identity, backend: Backend, container: ContainerClient, limits: Limits
+    identity: Identity,
+    backend: Backend,
+    container: ContainerClient,
+    limits: Limits,
+    engine: AsyncEngine,
 ) -> Services:
     runbooks = InMemoryRunbooks.from_directory(RUNBOOKS_DIR)
     policies = BlobPolicies(
@@ -65,6 +87,10 @@ def _services(
     )
     return Services(
         identities=Caller(identity),
+        rates=PostgresRateLimiter(
+            engine, per_minute=limits.rate.calls_per_minute, burst=limits.rate.burst
+        ),
+        audit=PostgresAuditTrail(engine),
         customers=CustomerService(backend.customers),
         orders=OrderService(backend.orders, limits, lambda: NOW),
         tickets=TicketService(backend.tickets, limits, lambda: NOW),
@@ -75,9 +101,11 @@ def _services(
 
 
 async def test_the_reference_read_sequence_runs_against_real_backends(
-    backend: Backend, container: ContainerClient, limits: Limits
+    real: RealServices, limits: Limits, mcp_app: AsyncEngine
 ) -> None:
-    server = server_with(_services(PRIYA, backend, container, limits), limits)
+    server = server_with(real(PRIYA), limits)
+    async with mcp_app.connect() as connection:
+        rows_before, _ = await broken_links(connection, limit=1)
 
     async with connected(server) as priya:
         order = data_of(await call(priya, "get_order", order_id=STUCK_ON_ADDRESS))
@@ -101,19 +129,31 @@ async def test_the_reference_read_sequence_runs_against_real_backends(
     assert runbooks["results"][0]["runbook_id"] == "rb-001"
     assert "| Premium | 72 hours | 15% of order value |" in policy["section"]["content"]
     assert elsewhere.code is ErrorCode.NOT_FOUND
+    async with mcp_app.connect() as connection:
+        recorded = (await connection.execute(_LATEST, {"after": rows_before})).all()
+        rows_after, broken = await broken_links(connection, limit=1)
+    assert (rows_after - rows_before, broken) == (7, [])
+    assert [(row.target, row.outcome, row.error_code) for row in recorded] == [
+        ("get_order", "ok", None),
+        ("lookup_customer", "ok", None),
+        ("list_tickets", "ok", None),
+        ("get_ticket", "ok", None),
+        ("search_runbooks", "ok", None),
+        ("get_policy_document", "ok", None),
+        ("get_order", "error", "NOT_FOUND"),
+    ]
+    assert {(row.actor_oid, tuple(row.actor_roles), row.written_by) for row in recorded} == {
+        (PRIYA.oid, ("Support.L1",), "mcp_app")
+    }
 
 
 async def test_what_a_caller_sees_depends_on_who_they_are(
-    backend: Backend, container: ContainerClient, limits: Limits
+    real: RealServices, limits: Limits
 ) -> None:
-    async with connected(
-        server_with(_services(ARJUN, backend, container, limits), limits)
-    ) as arjun:
+    async with connected(server_with(real(ARJUN), limits)) as arjun:
         unmasked = data_of(await call(arjun, "lookup_customer", customer_id=ASHA))
         as_requester = data_of(await call(arjun, "get_ticket", ticket_id=AWAITING_SUPERVISOR))
-    async with connected(
-        server_with(_services(KAVITA, backend, container, limits), limits)
-    ) as kavita:
+    async with connected(server_with(real(KAVITA), limits)) as kavita:
         south = data_of(await call(kavita, "get_order", order_id=SOUTH_ORDER))
         as_supervisor = data_of(await call(kavita, "get_ticket", ticket_id=AWAITING_SUPERVISOR))
 

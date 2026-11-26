@@ -74,7 +74,7 @@ async def test_a_failed_call_is_logged_as_json_without_the_exception_text(
         "mcp",
     )
     assert failure["where"][-1].endswith("in get")
-    assert [line["event"] for line in lines] == ["request_failed"]
+    assert [line["event"] for line in lines] == ["audit", "request_failed"]
 
 
 @pytest.mark.usefixtures("production_log")
@@ -134,7 +134,9 @@ async def test_nothing_the_caller_sent_is_logged_for_a_refused_call(
     lines = [json.loads(line) for line in logged.splitlines()]
     assert CUSTOMER_EMAIL not in logged
     assert "nobody@example.in" not in logged
-    assert [(line["event"], line["during"], line["code"]) for line in lines] == [
+    refusals = [line for line in lines if line["event"] != "audit"]
+    assert len(lines) == 2 * len(refusals)
+    assert [(line["event"], line["during"], line["code"]) for line in refusals] == [
         ("request_refused", "an unknown tool", "NOT_FOUND"),
         ("request_refused", "get_order", "VALIDATION_FAILED"),
         ("request_refused", "get_order", "VALIDATION_FAILED"),
@@ -159,7 +161,8 @@ async def test_the_failure_logged_is_the_one_that_was_not_handled(
     async with connected(server_for(PRIYA, limits, orders=orders)) as client:
         await call(client, "get_order", order_id=STUCK_ON_ADDRESS)
 
-    (line,) = [json.loads(line) for line in production_log.getvalue().splitlines()]
+    audit, line = [json.loads(line) for line in production_log.getvalue().splitlines()]
+    assert (audit["event"], audit["error_code"]) == ("audit", "INTERNAL")
     assert (line["event"], line["error"]) == ("request_failed", "ValueError")
 
 

@@ -1,6 +1,6 @@
 import hashlib
 
-from opscp_common.hashing import JsonValue, args_hash
+from opscp_common.hashing import JsonValue, args_hash, content_hash
 
 _ARGS: dict[str, JsonValue] = {
     "order_id": 3912,
@@ -38,3 +38,14 @@ def test_non_ascii_text_is_hashed_as_utf8() -> None:
     canonical = '{"args":{"note":"धन्यवाद"},"tool":"update_ticket"}'.encode()
 
     assert args_hash("update_ticket", {"note": "धन्यवाद"}) == hashlib.sha256(canonical).hexdigest()
+
+
+def test_equal_results_hash_equally_whatever_the_order_of_their_keys() -> None:
+    assert content_hash({"a": 1, "b": {"c": "é", "d": None}}) == content_hash(
+        {"b": {"d": None, "c": "é"}, "a": 1}
+    )
+    assert content_hash({"a": 1}) != content_hash({"a": 2})
+
+
+def test_a_result_with_a_very_large_number_or_none_at_all_still_has_a_hash() -> None:
+    assert len(content_hash({"n": 2**53 + 1})) == len(content_hash(None)) == 64

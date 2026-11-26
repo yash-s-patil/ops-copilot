@@ -10,7 +10,9 @@ from fastmcp.server.auth import AuthProvider
 from opscp_common.limits import Limits
 from opscp_mcp.authz.policy import Permission
 from opscp_mcp.container import OpenServices, Services
-from opscp_mcp.middleware.envelope import Envelope
+from opscp_mcp.middleware.audit import Audit
+from opscp_mcp.middleware.envelope import Envelope, ResultCap
+from opscp_mcp.middleware.rate_limit import RateLimit
 from opscp_mcp.middleware.visibility import Visibility
 from opscp_mcp.prompts import procedures
 from opscp_mcp.resources import reference
@@ -49,6 +51,7 @@ def build_server(
         async with open_services() as services:
             yield {SERVICES_KEY: services}
 
+    declared = _declared_permissions()
     server = FastMCP(
         SERVER_NAME,
         version=version(DISTRIBUTION),
@@ -56,8 +59,11 @@ def build_server(
         lifespan=lifespan,
         auth=sign_in,
         middleware=[
-            Envelope(limits.tool.result_bytes_max),
-            Visibility(_declared_permissions()),
+            Envelope(declared),
+            RateLimit(limits.timeout.postgres_s),
+            Audit(text_chars=limits.audit.text_chars, timeout_s=limits.timeout.postgres_s),
+            ResultCap(limits.tool.result_bytes_max),
+            Visibility(declared),
         ],
         mask_error_details=True,
         strict_input_validation=True,

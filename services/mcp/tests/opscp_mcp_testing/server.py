@@ -25,10 +25,13 @@ from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
+from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
 from opscp_mcp_testing.fakes.knowledge import FakePolicies
 from opscp_mcp_testing.fakes.meridian import FakeCustomers, FakeOrders, FakeTickets
 from opscp_mcp_testing.paths import POLICIES_DIR, RUNBOOKS_DIR
 from opscp_mcp_testing.world import NOW, WORLD
+
+UNLIMITED = 1_000_000
 
 
 class Caller:
@@ -53,6 +56,10 @@ def fake_services(identity: Identity, limits: Limits) -> Services:
     numbers = itertools.count(1)
     return Services(
         identities=Caller(identity),
+        rates=FakeRateLimiter(
+            per_minute=limits.rate.calls_per_minute, burst=UNLIMITED, clock=lambda: NOW
+        ),
+        audit=FakeAuditTrail(),
         customers=CustomerService(FakeCustomers(WORLD)),
         orders=OrderService(FakeOrders(WORLD), limits, lambda: NOW),
         tickets=TicketService(FakeTickets(WORLD), limits, lambda: NOW),

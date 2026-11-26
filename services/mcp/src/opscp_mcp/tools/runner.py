@@ -14,6 +14,25 @@ from opscp_mcp.tools.models import Provenance, ToolOutput
 SERVICES_KEY = "services"
 
 
+TOO_SLOW = "The request took too long. Try again."
+
+
+async def within[T](timeout_s: int, work: Awaitable[T]) -> T:
+    """The work's result, or TIMEOUT for the caller when it takes longer than allowed."""
+    try:
+        async with asyncio.timeout(timeout_s):
+            return await work
+    except TimeoutError as error:
+        raise BackendTimeoutError(TOO_SLOW) from error
+
+
+def services_in(request: Context | None) -> Services:
+    """For middleware, which is handed a context that the framework types as optional."""
+    if request is None:
+        raise InternalError
+    return services_of(request)
+
+
 def services_of(ctx: Context) -> Services:
     services = ctx.lifespan_context.get(SERVICES_KEY)
     if not isinstance(services, Services):
@@ -30,11 +49,7 @@ async def answer[T: Result](
     """Identify the caller, make the call within the tool's time limit, and stamp the result."""
     services = services_of(ctx)
     identity = services.identities.current()
-    try:
-        async with asyncio.timeout(timeout_s):
-            data = await call(services, identity)
-    except TimeoutError as error:
-        raise BackendTimeoutError("The request took too long. Try again.") from error
+    data = await within(timeout_s, call(services, identity))
     return ToolOutput(
         data=data,
         provenance=Provenance(
