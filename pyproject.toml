@@ -34,7 +34,7 @@ max-branches = 10
 max-args = 6
 
 [tool.ruff.lint.isort]
-known-first-party = ["opscp_common", "opscp_mcp", "opscp_seed"]
+known-first-party = ["opscp_common", "opscp_mcp", "opscp_mcp_testing", "opscp_seed"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -44,11 +44,13 @@ typeCheckingMode = "strict"
 pythonVersion = "3.13"
 include = ["jobs", "packages", "services"]
 exclude = ["**/.venv", "**/node_modules", "**/__pycache__"]
+extraPaths = ["services/mcp/tests"]
 reportMissingTypeStubs = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["jobs", "packages", "services"]
+pythonpath = ["services/mcp/tests"]
 addopts = [
     "--import-mode=importlib",
     "--strict-markers",

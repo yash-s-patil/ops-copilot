@@ -6,19 +6,10 @@ from datetime import datetime, timedelta
 from random import Random
 
 from opscp_common.limits import GoodwillLimits
+from opscp_common.vocabulary import Priority, Queue, Region, TicketStatus
 from opscp_seed.issues import FOLLOW_UPS, PENDING_QUESTIONS
 from opscp_seed.journeys import SECONDS_PER_HOUR, OrderCase, Problem
-from opscp_seed.model import (
-    AuthorKind,
-    Engineer,
-    Json,
-    Priority,
-    Queue,
-    Region,
-    Ticket,
-    TicketNote,
-    TicketStatus,
-)
+from opscp_seed.model import AuthorKind, Engineer, Json, Ticket, TicketNote
 
 ESCALATED_SHARE = 0.2
 REPLY_SHARE = 0.25

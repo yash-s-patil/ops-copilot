@@ -5,23 +5,18 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from opscp_common.hashing import args_hash
+from opscp_common.vocabulary import EventType, OrderStatus, Priority, Queue, Region, Tier
 from opscp_seed.journeys import hours
 from opscp_seed.model import (
     Customer,
     Dataset,
     Engineer,
-    EventType,
     Json,
     Order,
     OrderEvent,
-    OrderStatus,
     PendingAction,
-    Priority,
-    Queue,
-    Region,
     Ticket,
     TicketNote,
-    Tier,
 )
 
 FIRST_CUSTOMER_ID = 1001

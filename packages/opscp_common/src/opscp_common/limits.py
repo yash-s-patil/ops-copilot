@@ -24,6 +24,13 @@ class EventsLimits(_Group):
 
 class EventLimits(_Group):
     summary_chars: PositiveInt
+    detail_chars: PositiveInt
+
+
+class StuckLimits(_Group):
+    paid_hours: PositiveInt
+    packed_hours: PositiveInt
+    shipped_no_scan_hours: PositiveInt
 
 
 class TicketsLimits(_Group):
@@ -208,6 +215,7 @@ class SimLimits(_Group):
 class Limits(_Group):
     events: EventsLimits
     event: EventLimits
+    stuck: StuckLimits
     tickets: TicketsLimits
     ticket: TicketLimits
     notes: NotesLimits

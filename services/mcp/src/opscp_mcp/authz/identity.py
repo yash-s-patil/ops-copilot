@@ -1,16 +1,12 @@
 """Who is calling, as established from their token."""
 
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from opscp_common.errors import PermissionDeniedError
+from opscp_common.vocabulary import CallerRegion
 from opscp_mcp.authz.policy import Permission, Role, permissions_for
-
-ALL_REGIONS = "*"
-
-type CallerRegion = Literal["west", "south", "*"]
 
 
 class Identity(BaseModel):

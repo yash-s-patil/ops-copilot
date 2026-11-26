@@ -13,7 +13,8 @@ SECONDS_PER_MINUTE = 60
 
 APPENDIX_A: dict[str, dict[str, Any]] = {
     "events": {"recent": 10},
-    "event": {"summary_chars": 200},
+    "event": {"summary_chars": 200, "detail_chars": 60},
+    "stuck": {"paid_hours": 24, "packed_hours": 48, "shipped_no_scan_hours": 72},
     "tickets": {"page_size_default": 10, "page_size_max": 25},
     "ticket": {"summary_chars": 160, "note_write_chars": 1000},
     "notes": {"default": 5, "max": 10},

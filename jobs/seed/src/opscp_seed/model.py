@@ -8,26 +8,16 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from opscp_common.hashing import JsonValue
+from opscp_common.vocabulary import (
+    EventType,
+    OrderStatus,
+    Priority,
+    Queue,
+    Region,
+    TicketStatus,
+    Tier,
+)
 
-type Region = Literal["west", "south"]
-type Tier = Literal["standard", "premium"]
-type OrderStatus = Literal["placed", "paid", "packed", "shipped", "delivered", "cancelled", "lost"]
-type EventType = Literal[
-    "payment_hold",
-    "payment_released",
-    "address_validation_failed",
-    "packed",
-    "carrier_pickup",
-    "carrier_scan",
-    "carrier_exception",
-    "lost_in_transit_confirmed",
-    "damage_reported",
-    "delivered",
-    "cancelled",
-]
-type TicketStatus = Literal["open", "pending_customer", "resolved", "closed"]
-type Priority = Literal["P1", "P2", "P3", "P4"]
-type Queue = Literal["L1", "L2"]
 type AuthorKind = Literal["customer", "engineer"]
 type RefundReason = Literal["goodwill_delay", "lost_in_transit", "damaged"]
 type Json = dict[str, JsonValue]

@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 
-from opscp_seed.model import Priority, RefundReason
+from opscp_common.vocabulary import Priority
+from opscp_seed.model import RefundReason
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
