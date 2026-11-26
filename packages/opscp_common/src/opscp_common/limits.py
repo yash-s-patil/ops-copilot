@@ -36,6 +36,7 @@ class StuckLimits(_Group):
 class TicketsLimits(_Group):
     page_size_default: PositiveInt
     page_size_max: PositiveInt
+    count_max: PositiveInt
 
     @model_validator(mode="after")
     def _default_within_max(self) -> Self:
@@ -47,6 +48,7 @@ class TicketsLimits(_Group):
 
 class TicketLimits(_Group):
     summary_chars: PositiveInt
+    summary_bytes: PositiveInt
     note_write_chars: PositiveInt
 
 
@@ -62,6 +64,7 @@ class NotesLimits(_Group):
 
 class NoteLimits(_Group):
     chars: PositiveInt
+    bytes: PositiveInt
 
 
 class RunbooksLimits(_Group):
@@ -96,6 +99,16 @@ class SearchLimits(_Group):
 
 class RefundLimits(_Group):
     reason_chars: PositiveInt
+    reason_bytes: PositiveInt
+
+
+class NameLimits(_Group):
+    chars: PositiveInt
+    bytes: PositiveInt
+
+
+class CursorLimits(_Group):
+    chars: PositiveInt
 
 
 class ToolLimits(_Group):
@@ -224,7 +237,9 @@ class Limits(_Group):
     runbook: RunbookLimits
     policy: PolicyLimits
     search: SearchLimits
+    cursor: CursorLimits
     refund: RefundLimits
+    name: NameLimits
     tool: ToolLimits
     tool_timeout: ToolTimeoutLimits
     user: UserLimits

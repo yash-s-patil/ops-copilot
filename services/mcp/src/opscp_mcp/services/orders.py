@@ -2,15 +2,13 @@ from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-
 from opscp_common.errors import NotFoundError
 from opscp_common.limits import Limits, StuckLimits
 from opscp_common.vocabulary import EventType, OrderStatus
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.authz.policy import Permission
 from opscp_mcp.ports.meridian import EventRecord, OrderRecord, Orders
-from opscp_mcp.services.caps import cap_text
+from opscp_mcp.services.caps import Result, cap_text
 from opscp_mcp.services.inputs import require_id
 from opscp_mcp.services.scope import scope_of
 
@@ -47,24 +45,20 @@ _DETAILS: Mapping[EventType, tuple[str, ...]] = {
 }
 
 
-class _View(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class EventView(_View):
+class EventView(Result):
     type: EventType
     occurred_at: datetime
     summary: str
     truncated: bool
 
 
-class OrderEvents(_View):
+class OrderEvents(Result):
     recent: tuple[EventView, ...]
     total: int
     older_by_type: dict[EventType, int]
 
 
-class OrderView(_View):
+class OrderView(Result):
     order_id: int
     customer_id: int
     status: OrderStatus

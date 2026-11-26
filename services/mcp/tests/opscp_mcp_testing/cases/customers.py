@@ -8,7 +8,7 @@ from opscp_mcp_testing.cases.backend import Backend
 from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA, ROHAN, SAM
 from opscp_mcp_testing.world import ASHA, BALA, NOBODY, WORLD
 
-ASHA_ROW, BALA_ROW = WORLD.customers
+ASHA_ROW, BALA_ROW = WORLD.customers[:2]
 
 
 class CustomerCases:

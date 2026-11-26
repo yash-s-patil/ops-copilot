@@ -14,8 +14,10 @@ stuck:
 tickets:
   page_size_default: 10
   page_size_max: 25
+  count_max: 999
 ticket:
   summary_chars: 160
+  summary_bytes: 160
   note_write_chars: 1000
 
 notes:
@@ -23,6 +25,7 @@ notes:
   max: 10
 note:
   chars: 600
+  bytes: 1000
 
 runbooks:
   top_k_default: 3
@@ -35,8 +38,14 @@ policy:
 search:
   query_chars_min: 3
   query_chars_max: 200
+cursor:
+  chars: 200
 refund:
   reason_chars: 300
+  reason_bytes: 600
+name:
+  chars: 48
+  bytes: 48
 tool:
   result_bytes_max: 16384
 tool_timeout:

@@ -7,6 +7,7 @@ from opscp_mcp.adapters.postgres.session import read_as
 from opscp_mcp.ports.meridian import Scope
 from opscp_mcp_testing.cases.customers import CustomerCases
 from opscp_mcp_testing.cases.orders import OrderCases
+from opscp_mcp_testing.cases.tickets import TicketCases
 from opscp_mcp_testing.identities import PRIYA
 
 pytestmark = pytest.mark.integration
@@ -19,6 +20,10 @@ class TestCustomersInPostgres(CustomerCases):
 
 
 class TestOrdersInPostgres(OrderCases):
+    pass
+
+
+class TestTicketsInPostgres(TicketCases):
     pass
 
 
