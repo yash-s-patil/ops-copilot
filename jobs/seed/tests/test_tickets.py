@@ -3,10 +3,11 @@ from datetime import timedelta
 import pytest
 
 from opscp_common.limits import Limits
+from opscp_common.vocabulary import Tier
 from opscp_seed import issues
 from opscp_seed.issues import Issue
 from opscp_seed.journeys import OrderCase, Problem
-from opscp_seed.model import Customer, Order, Tier
+from opscp_seed.model import Customer, Order
 from opscp_seed.tickets import recommend_refund
 
 from .conftest import NOW

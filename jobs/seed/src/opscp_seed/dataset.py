@@ -8,9 +8,10 @@ from uuid import UUID
 from faker import Faker
 
 from opscp_common.limits import Limits
+from opscp_common.vocabulary import Region, Tier
 from opscp_seed import crafted
 from opscp_seed.journeys import HOURS_PER_DAY, OrderCase, hours, order_case
-from opscp_seed.model import Customer, Dataset, Engineer, Region, Tier
+from opscp_seed.model import Customer, Dataset, Engineer
 from opscp_seed.settings import DemoUsers
 from opscp_seed.tickets import Staff, TicketWriter
 

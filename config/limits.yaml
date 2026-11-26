@@ -4,6 +4,12 @@ events:
   recent: 10
 event:
   summary_chars: 200
+  detail_chars: 60
+
+stuck:
+  paid_hours: 24
+  packed_hours: 48
+  shipped_no_scan_hours: 72
 
 tickets:
   page_size_default: 10

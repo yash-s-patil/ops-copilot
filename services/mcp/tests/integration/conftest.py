@@ -8,6 +8,11 @@ from alembic.config import Config
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from opscp_mcp.adapters.postgres.customers import PostgresCustomers
+from opscp_mcp.adapters.postgres.orders import PostgresOrders
+from opscp_mcp_testing.cases.backend import Backend
+from opscp_mcp_testing.world import WORLD
+
 from .database import (
     FIXTURE_PARAMETERS,
     FIXTURE_ROWS,
@@ -16,6 +21,7 @@ from .database import (
     WEST_ENGINEER,
     database_settings,
 )
+from .world_loader import load_world, remove_world
 
 
 def _alembic_config() -> Config:
@@ -67,3 +73,17 @@ async def mcp_app(migrator: AsyncEngine) -> AsyncGenerator[AsyncEngine]:
 async def payments_worker(migrator: AsyncEngine) -> AsyncGenerator[AsyncEngine]:
     async with _engine("payments_worker") as engine:
         yield engine
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def world(migrator: AsyncEngine) -> AsyncGenerator[None]:
+    async with migrator.begin() as connection:
+        await load_world(connection, WORLD)
+    yield
+    async with migrator.begin() as connection:
+        await remove_world(connection)
+
+
+@pytest.fixture
+def backend(mcp_app: AsyncEngine, world: None) -> Backend:
+    return Backend(customers=PostgresCustomers(mcp_app), orders=PostgresOrders(mcp_app))

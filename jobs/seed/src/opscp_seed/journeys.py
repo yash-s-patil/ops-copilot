@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 from random import Random
 
 from opscp_common.hashing import JsonValue
+from opscp_common.vocabulary import EventType, OrderStatus, Region
 from opscp_seed import issues
 from opscp_seed.issues import Issue
-from opscp_seed.model import Customer, EventType, Json, Order, OrderEvent, OrderStatus, Region
+from opscp_seed.model import Customer, Json, Order, OrderEvent
 
 SECONDS_PER_HOUR = 3600
 HOURS_PER_DAY = 24
