@@ -1,20 +1,17 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
-
 from opscp_common.errors import NotFoundError, ValidationFailedError
 from opscp_common.vocabulary import Region, Tier
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.authz.policy import Permission
 from opscp_mcp.ports.meridian import CustomerRecord, Customers
+from opscp_mcp.services.caps import Result
 from opscp_mcp.services.inputs import require_email, require_id
 from opscp_mcp.services.masking import mask_email, mask_phone
 from opscp_mcp.services.scope import scope_of
 
 
-class CustomerView(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
+class CustomerView(Result):
     customer_id: int
     display_name: str
     tier: Tier

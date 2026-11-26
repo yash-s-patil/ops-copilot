@@ -11,6 +11,7 @@ from opscp_common.settings import DatabaseSettings
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
 TEST_DATABASE = "meridian_test"
+_LOCAL_HOSTS = ("127.0.0.1", "localhost")
 
 WEST_ENGINEER = UUID("11111111-1111-4111-8111-111111111111")
 SOUTH_ENGINEER = UUID("22222222-2222-4222-8222-222222222222")
@@ -21,6 +22,12 @@ SOUTH = {"order": 102, "ticket": 202}
 
 SET_USER_CONTEXT = text(
     "SELECT set_config('app.user_oid', :oid, true), set_config('app.region', :region, true)"
+)
+
+_EMPTY_BUSINESS_TABLES = text(
+    "TRUNCATE core.customers, core.orders, core.order_events, core.tickets, core.ticket_notes,"
+    " core.refunds, control.pending_actions, control.approval_token_uses, control.outbox,"
+    " control.rate_limits, control.chaos_flags RESTART IDENTITY"
 )
 
 FIXTURE_PARAMETERS = {"west_engineer": WEST_ENGINEER, "pending_action": PENDING_ACTION}
@@ -101,3 +108,13 @@ async def transaction(
             yield connection
         finally:
             await outer.rollback()
+
+
+async def start_from_empty_tables(connection: AsyncConnection) -> None:
+    """Each test module loads its own rows, so none inherits another module's."""
+    database = await connection.scalar(text("SELECT current_database()"))
+    host = database_settings("migrator").host
+    if database != TEST_DATABASE or host not in _LOCAL_HOSTS:
+        raise RuntimeError(f"refusing to empty the tables of {database} on {host}")
+    await connection.execute(SET_USER_CONTEXT, {"oid": str(WEST_ENGINEER), "region": "*"})
+    await connection.execute(_EMPTY_BUSINESS_TABLES)

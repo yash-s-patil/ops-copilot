@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from opscp_mcp.adapters.postgres.customers import PostgresCustomers
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
+from opscp_mcp.adapters.postgres.tickets import PostgresTickets
 from opscp_mcp_testing.cases.backend import Backend
 from opscp_mcp_testing.world import WORLD
 
@@ -17,11 +18,10 @@ from .database import (
     FIXTURE_PARAMETERS,
     FIXTURE_ROWS,
     SERVICE_ROOT,
-    SET_USER_CONTEXT,
-    WEST_ENGINEER,
     database_settings,
+    start_from_empty_tables,
 )
-from .world_loader import load_world, remove_world
+from .world_loader import load_world
 
 
 def _alembic_config() -> Config:
@@ -52,15 +52,19 @@ async def _engine(user: str) -> AsyncGenerator[AsyncEngine]:
 @pytest_asyncio.fixture(scope="session")
 async def migrator(migrated_database: None) -> AsyncGenerator[AsyncEngine]:
     async with _engine("migrator") as engine:
-        async with engine.begin() as connection:
-            await connection.execute(SET_USER_CONTEXT, {"oid": str(WEST_ENGINEER), "region": "*"})
-            for statement in FIXTURE_ROWS:
-                await connection.execute(
-                    text(statement).bindparams(
-                        **{k: v for k, v in FIXTURE_PARAMETERS.items() if f":{k}" in statement}
-                    )
-                )
         yield engine
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="session")
+async def fixture_rows(migrator: AsyncEngine) -> None:
+    async with migrator.begin() as connection:
+        await start_from_empty_tables(connection)
+        for statement in FIXTURE_ROWS:
+            await connection.execute(
+                text(statement).bindparams(
+                    **{k: v for k, v in FIXTURE_PARAMETERS.items() if f":{k}" in statement}
+                )
+            )
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -76,14 +80,16 @@ async def payments_worker(migrator: AsyncEngine) -> AsyncGenerator[AsyncEngine]:
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="session")
-async def world(migrator: AsyncEngine) -> AsyncGenerator[None]:
+async def world(migrator: AsyncEngine) -> None:
     async with migrator.begin() as connection:
+        await start_from_empty_tables(connection)
         await load_world(connection, WORLD)
-    yield
-    async with migrator.begin() as connection:
-        await remove_world(connection)
 
 
 @pytest.fixture
 def backend(mcp_app: AsyncEngine, world: None) -> Backend:
-    return Backend(customers=PostgresCustomers(mcp_app), orders=PostgresOrders(mcp_app))
+    return Backend(
+        customers=PostgresCustomers(mcp_app),
+        orders=PostgresOrders(mcp_app),
+        tickets=PostgresTickets(mcp_app),
+    )

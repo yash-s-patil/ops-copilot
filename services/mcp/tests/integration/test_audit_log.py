@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from .database import WEST_ENGINEER, transaction
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("fixture_rows")]
 
 _GENESIS_HASH = "0" * 64
 

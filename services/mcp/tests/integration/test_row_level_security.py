@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from .database import SOUTH, SOUTH_ENGINEER, WEST, WEST_ENGINEER, transaction
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("fixture_rows")]
 
 _COUNT = {
     "customers": text("SELECT count(*) FROM core.customers"),

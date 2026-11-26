@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from .database import PENDING_ACTION, WEST, WEST_ENGINEER, database_settings, transaction
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("fixture_rows")]
 
 _DENIED = "permission denied"
 
