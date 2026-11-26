@@ -4,7 +4,7 @@ Hiding is a courtesy to the model, not the control: every call checks the permis
 in the service that answers it. Anything without a declared permission is hidden.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 
 import mcp.types as mt
 from fastmcp import Context
@@ -27,12 +27,19 @@ def _caller(request: Context | None) -> Identity | None:
 
 
 class Visibility(Middleware):
-    def __init__(self, requires: Mapping[str, Permission]) -> None:
+    def __init__(
+        self, requires: Mapping[str, Permission], open_to_any_role: Collection[str] = ()
+    ) -> None:
         self._requires = requires
+        self._open_to_any_role = frozenset(open_to_any_role)
 
     def _usable(self, caller: Identity | None, name: str) -> bool:
+        if caller is None:
+            return False
+        if name in self._open_to_any_role:
+            return bool(caller.roles)
         needed = self._requires.get(name)
-        return caller is not None and needed is not None and caller.can(needed)
+        return needed is not None and caller.can(needed)
 
     async def on_list_tools(
         self,

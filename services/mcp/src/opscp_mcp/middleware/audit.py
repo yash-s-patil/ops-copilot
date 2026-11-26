@@ -19,8 +19,9 @@ from opscp_common.errors import ErrorCode
 from opscp_common.hashing import content_hash
 from opscp_mcp.middleware.envelope import UNKNOWN_TOOL, content_bytes, refusal
 from opscp_mcp.ports.controls import AuditEntry
+from opscp_mcp.reliability.deadline import within
 from opscp_mcp.services.redaction import redacted
-from opscp_mcp.tools.runner import services_in, within
+from opscp_mcp.tools.runner import services_in
 
 _LOG = structlog.get_logger(__name__)
 _MS_PER_S = 1000

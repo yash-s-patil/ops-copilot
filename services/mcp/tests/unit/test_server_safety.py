@@ -14,6 +14,7 @@ from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.ports.meridian import OrderRecord, Scope
+from opscp_mcp.services.health import HEALTH_URI
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.resources import (
     ORDER_LIFECYCLE_URI,
@@ -45,7 +46,7 @@ VALID_PROMPTS: dict[str, dict[str, Any]] = {
     "investigate_order": {"order_id": 4471},
     "draft_customer_reply": {"ticket_id": 2207, "tone": "firm"},
 }
-RESOURCES = [ORDER_LIFECYCLE_URI, REFUND_SUMMARY_URI, RUNBOOK_INDEX_URI]
+RESOURCES = [ORDER_LIFECYCLE_URI, REFUND_SUMMARY_URI, RUNBOOK_INDEX_URI, HEALTH_URI]
 CUSTOMER_EMAIL = "asha.rao@example.in"
 
 

@@ -6,9 +6,10 @@ from azure.storage.blob.aio import ContainerClient
 
 from opscp_common.errors import InternalError
 from opscp_common.limits import Limits
-from opscp_mcp.adapters.blob import BlobPolicies
+from opscp_mcp.adapters.blob import BlobPolicies, classify
 from opscp_mcp.ports.knowledge import Policies
 from opscp_mcp_testing.cases.policies import PolicyCases
+from opscp_mcp_testing.guards import a_guard
 from opscp_mcp_testing.paths import POLICIES_DIR
 
 from .storage import NOT_TEXT, scratch_policies
@@ -25,7 +26,7 @@ async def container() -> AsyncGenerator[ContainerClient]:
 @pytest.fixture
 def policies(container: ContainerClient, limits: Limits) -> Policies:
     return BlobPolicies(
-        container, timeout_s=limits.timeout.blob_s, max_bytes=limits.policy.document_bytes
+        container, a_guard("blob", classify=classify), max_bytes=limits.policy.document_bytes
     )
 
 
@@ -51,7 +52,7 @@ async def test_a_stored_blob_that_is_not_text_is_a_server_fault(policies: Polici
 async def test_a_stored_document_over_the_size_limit_is_refused(
     container: ContainerClient, limits: Limits
 ) -> None:
-    strict = BlobPolicies(container, timeout_s=limits.timeout.blob_s, max_bytes=10)
+    strict = BlobPolicies(container, a_guard("blob", classify=classify), max_bytes=10)
 
     with pytest.raises(InternalError):
         await strict.read("refund-policy")

@@ -7,10 +7,10 @@ from opscp_common.limits import Limits
 from opscp_mcp.authz.policy import Permission
 from opscp_mcp.services.orders import EventDetail, OrderView
 from opscp_mcp.tools.models import ToolOutput
+from opscp_mcp.tools.names import GET_ORDER
 from opscp_mcp.tools.runner import answer
 from opscp_mcp.tools.shared import READ_ONLY, UNTRUSTED_TEXT
 
-GET_ORDER = "get_order"
 REQUIRES = {GET_ORDER: Permission.ORDERS_READ}
 
 

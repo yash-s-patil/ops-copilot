@@ -7,6 +7,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from opscp_common.settings import DatabaseSettings
+from opscp_mcp.adapters.postgres.session import Database, classify
+from opscp_mcp_testing.guards import a_guard
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
@@ -118,3 +120,8 @@ async def start_from_empty_tables(connection: AsyncConnection) -> None:
         raise RuntimeError(f"refusing to empty the tables of {database} on {host}")
     await connection.execute(SET_USER_CONTEXT, {"oid": str(WEST_ENGINEER), "region": "*"})
     await connection.execute(_EMPTY_BUSINESS_TABLES)
+
+
+def guarded(engine: AsyncEngine) -> Database:
+    """The engine behind the guard the server puts in front of PostgreSQL."""
+    return Database(engine, a_guard("postgres", classify=classify))

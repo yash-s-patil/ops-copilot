@@ -9,11 +9,10 @@ from opscp_mcp.authz.policy import Permission
 from opscp_mcp.services.queues import View
 from opscp_mcp.services.tickets import TicketPage, TicketQuery, TicketView
 from opscp_mcp.tools.models import ToolOutput
+from opscp_mcp.tools.names import GET_TICKET, LIST_TICKETS
 from opscp_mcp.tools.runner import answer
 from opscp_mcp.tools.shared import READ_ONLY, UNTRUSTED_TEXT
 
-LIST_TICKETS = "list_tickets"
-GET_TICKET = "get_ticket"
 REQUIRES = {LIST_TICKETS: Permission.TICKETS_READ, GET_TICKET: Permission.TICKETS_READ}
 
 

@@ -19,6 +19,7 @@ from .database import (
     FIXTURE_ROWS,
     SERVICE_ROOT,
     database_settings,
+    guarded,
     start_from_empty_tables,
 )
 from .world_loader import load_world
@@ -89,7 +90,7 @@ async def world(migrator: AsyncEngine) -> None:
 @pytest.fixture
 def backend(mcp_app: AsyncEngine, world: None) -> Backend:
     return Backend(
-        customers=PostgresCustomers(mcp_app),
-        orders=PostgresOrders(mcp_app),
-        tickets=PostgresTickets(mcp_app),
+        customers=PostgresCustomers(guarded(mcp_app)),
+        orders=PostgresOrders(guarded(mcp_app)),
+        tickets=PostgresTickets(guarded(mcp_app)),
     )

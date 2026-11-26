@@ -26,6 +26,11 @@ class Identity(BaseModel):
     def can(self, permission: Permission) -> bool:
         return permission in self.permissions
 
+    def require_a_role(self) -> None:
+        """For what any member of staff may use, whatever their job."""
+        if not self.roles:
+            raise PermissionDeniedError("Your account has no role here.")
+
     def require(self, permission: Permission) -> None:
         if not self.can(permission):
             raise PermissionDeniedError(

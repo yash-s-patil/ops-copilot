@@ -56,10 +56,12 @@ READ_TOOLS = [
     "search_runbooks",
     "get_policy_document",
 ]
+HEALTH = "meridian://server/health"
 READ_RESOURCES = [
     "meridian://reference/order-lifecycle",
     "meridian://policy/refund/summary",
     "meridian://runbooks/index",
+    HEALTH,
 ]
 READ_PROMPTS = ["investigate_order", "draft_customer_reply"]
 TENANT = UUID("7f1c2d3e-0000-4000-8000-0000000000bb")
@@ -214,7 +216,7 @@ SHOWN: dict[str, tuple[Identity, list[str], list[str], list[str]]] = {
     "an L1 engineer in the south": (ROHAN, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
     "an L2 engineer": (ARJUN, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
     "a supervisor": (KAVITA, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
-    "an administrator": (SAM, [], [], []),
+    "an administrator": (SAM, [], [HEALTH], []),
 }
 
 

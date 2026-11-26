@@ -13,7 +13,7 @@ from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.ports.controls import Allowance, AuditEntry
 from opscp_mcp.services.redaction import redacted
 
-from .database import REPO_ROOT, WEST_ENGINEER, database_settings
+from .database import REPO_ROOT, WEST_ENGINEER, database_settings, guarded
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("fixture_rows")]
 
@@ -49,7 +49,7 @@ def _entry(**changed: object) -> AuditEntry:
 async def test_an_entry_is_stored_as_it_was_given(mcp_app: AsyncEngine) -> None:
     entry = _entry()
 
-    audit_id = await PostgresAuditTrail(mcp_app).record(entry)
+    audit_id = await PostgresAuditTrail(guarded(mcp_app)).record(entry)
 
     async with mcp_app.connect() as connection:
         row = (await connection.execute(_LAST)).mappings().one()
@@ -63,7 +63,7 @@ async def test_arguments_made_safe_to_keep_can_always_be_stored(mcp_app: AsyncEn
     awkward = {"query": 'nul \x00 quote " backslash \\ emoji 😀 tab \t', "email": "a\x00@b.in"}
     kept = redacted(awkward, awkward.keys(), 200)
 
-    await PostgresAuditTrail(mcp_app).record(_entry(args_redacted=kept))
+    await PostgresAuditTrail(guarded(mcp_app)).record(_entry(args_redacted=kept))
 
     async with mcp_app.connect() as connection:
         row = (await connection.execute(_LAST)).mappings().one()
@@ -71,7 +71,7 @@ async def test_arguments_made_safe_to_keep_can_always_be_stored(mcp_app: AsyncEn
 
 
 async def test_a_denial_is_stored_with_no_result(mcp_app: AsyncEngine) -> None:
-    await PostgresAuditTrail(mcp_app).record(
+    await PostgresAuditTrail(guarded(mcp_app)).record(
         _entry(
             action="deny",
             outcome="denied",
@@ -92,7 +92,7 @@ async def test_a_denial_is_stored_with_no_result(mcp_app: AsyncEngine) -> None:
 
 
 async def test_entries_written_at_the_same_moment_form_one_chain(mcp_app: AsyncEngine) -> None:
-    trail = PostgresAuditTrail(mcp_app)
+    trail = PostgresAuditTrail(guarded(mcp_app))
     async with mcp_app.connect() as connection:
         before, _ = await broken_links(connection, limit=1)
 
@@ -117,7 +117,7 @@ async def test_entries_written_at_the_same_moment_form_one_chain(mcp_app: AsyncE
 async def test_a_changed_or_removed_row_is_found(
     mcp_app: AsyncEngine, migrator: AsyncEngine, tamper: str
 ) -> None:
-    trail = PostgresAuditTrail(mcp_app)
+    trail = PostgresAuditTrail(guarded(mcp_app))
     for number in range(3):
         await trail.record(_entry(duration_ms=number))
 
@@ -165,7 +165,7 @@ async def test_the_script_says_so_when_the_log_cannot_be_read(
 async def test_the_script_reports_a_whole_chain(
     mcp_app: AsyncEngine, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    await PostgresAuditTrail(mcp_app).record(_entry())
+    await PostgresAuditTrail(guarded(mcp_app)).record(_entry())
 
     status = await runpy.run_path(str(SCRIPT))["main"]()
 
@@ -189,7 +189,7 @@ async def test_the_script_names_the_rows_of_a_broken_chain(
 
 
 def _limiter(engine: AsyncEngine) -> PostgresRateLimiter:
-    return PostgresRateLimiter(engine, per_minute=PER_MINUTE, burst=BURST)
+    return PostgresRateLimiter(guarded(engine), per_minute=PER_MINUTE, burst=BURST)
 
 
 async def _take(limiter: PostgresRateLimiter, user: UUID, times: int) -> list[Allowance]:
@@ -244,7 +244,7 @@ async def test_users_are_counted_separately(mcp_app: AsyncEngine) -> None:
 async def test_a_slow_user_is_told_how_long_one_call_takes_to_come_back(
     mcp_app: AsyncEngine,
 ) -> None:
-    slow, user = PostgresRateLimiter(mcp_app, per_minute=2, burst=1), uuid4()
+    slow, user = PostgresRateLimiter(guarded(mcp_app), per_minute=2, burst=1), uuid4()
 
     _, refused = await slow.take(user), await slow.take(user)
 

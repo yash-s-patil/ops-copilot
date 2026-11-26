@@ -18,7 +18,7 @@ from sqlalchemy import (
     true,
     tuple_,
 )
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from opscp_common.vocabulary import (
     ISSUE_REFUND,
@@ -27,7 +27,7 @@ from opscp_common.vocabulary import (
     REQUEST_PROPOSED,
     SUPERVISOR_APPROVAL,
 )
-from opscp_mcp.adapters.postgres.session import read_as
+from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.tables import (
     customers,
     pending_actions,
@@ -230,13 +230,13 @@ def _before(position: TicketPosition) -> ColumnElement[bool]:
 
 
 class PostgresTickets:
-    def __init__(self, engine: AsyncEngine) -> None:
-        self._engine = engine
+    def __init__(self, database: Database) -> None:
+        self._database = database
 
     async def get(
         self, scope: Scope, ticket_id: int, *, notes: int, now: datetime
     ) -> TicketWithNotes | None:
-        async with read_as(self._engine, scope) as connection:
+        async def find(connection: AsyncConnection) -> TicketWithNotes | None:
             row = (
                 (await connection.execute(_tickets(scope, now).where(tickets.c.id == ticket_id)))
                 .mappings()
@@ -248,14 +248,18 @@ class PostgresTickets:
                 ticket=_record(row), notes=await _newest_notes(connection, ticket_id, notes)
             )
 
+        return await self._database.read(scope, find)
+
     async def page(
         self, scope: Scope, request: TicketPageRequest, *, now: datetime
     ) -> TicketPageRecord:
-        async with read_as(self._engine, scope) as connection:
+        async def find(connection: AsyncConnection) -> TicketPageRecord:
             return TicketPageRecord(
                 tickets=await _page(connection, scope, request, now),
                 counts=await _counts(connection, request, now),
             )
+
+        return await self._database.read(scope, find)
 
 
 async def _newest_notes(

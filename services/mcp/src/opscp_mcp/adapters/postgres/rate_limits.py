@@ -4,8 +4,9 @@ import math
 from uuid import UUID
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection
 
+from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.ports.controls import Allowance
 
 _SECONDS_PER_MINUTE = 60
@@ -44,16 +45,19 @@ _TAKE = text(
 
 
 class PostgresRateLimiter:
-    def __init__(self, engine: AsyncEngine, *, per_minute: int, burst: int) -> None:
-        self._engine = engine
+    def __init__(self, database: Database, *, per_minute: int, burst: int) -> None:
+        self._database = database
         self._per_minute = per_minute
         self._burst = burst
 
     async def take(self, user_oid: UUID) -> Allowance:
         bucket = {"user_oid": user_oid, "burst": self._burst, "per_minute": self._per_minute}
-        async with self._engine.begin() as connection:
+
+        async def count(connection: AsyncConnection) -> float:
             await connection.execute(_OPEN_BUCKET, {"user_oid": user_oid, "burst": self._burst})
-            tokens = float((await connection.execute(_TAKE, bucket)).scalar_one())
+            return float((await connection.execute(_TAKE, bucket)).scalar_one())
+
+        tokens = await self._database.write(count)
         if tokens >= 1:
             return Allowance(allowed=True, retry_after_s=0)
         wait_s = (1 - tokens) * _SECONDS_PER_MINUTE / self._per_minute

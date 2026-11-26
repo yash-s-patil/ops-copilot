@@ -199,3 +199,30 @@ async def test_the_wait_is_never_reported_as_less_than_a_second() -> None:
         Allowance(allowed=True, retry_after_s=0),
         Allowance(allowed=False, retry_after_s=60),
     )
+
+
+async def test_one_persons_flood_is_counted_one_request_at_a_time(limits: Limits) -> None:
+    class _Watched:
+        def __init__(self) -> None:
+            self.counting: dict[UUID, int] = {}
+            self.most: dict[UUID, int] = {}
+
+        async def take(self, user_oid: UUID) -> Allowance:
+            self.counting[user_oid] = self.counting.get(user_oid, 0) + 1
+            self.most[user_oid] = max(self.most.get(user_oid, 0), self.counting[user_oid])
+            await asyncio.sleep(0.001)
+            self.counting[user_oid] -= 1
+            return Allowance(allowed=True, retry_after_s=0)
+
+    rates, whoever = _Watched(), _Whoever()
+    server = server_for(PRIYA, limits, rates=rates, identities=whoever)
+
+    async with connected(server) as client:
+        flood = [call(client, "get_order", order_id=STUCK_ON_ADDRESS) for _ in range(30)]
+        await asyncio.gather(*flood)
+        whoever.identity = ARJUN
+        await asyncio.gather(
+            *(call(client, "get_order", order_id=STUCK_ON_ADDRESS) for _ in range(5))
+        )
+
+    assert rates.most == {PRIYA.oid: 1, ARJUN.oid: 1}
