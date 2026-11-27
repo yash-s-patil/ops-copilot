@@ -72,6 +72,22 @@ class Database:
 
         return await self._guard.run(attempt, retry=True)
 
+    async def lookup[T](self, work: Work[T]) -> T:
+        """A read that carries no caller's scope, for tables that are not divided by region.
+
+        With no scope set, a table under row-level security shows it nothing.
+        """
+
+        async def attempt() -> T:
+            async with self._engine.connect() as connection:
+                await connection.execution_options(
+                    isolation_level="REPEATABLE READ", postgresql_readonly=True
+                )
+                async with connection.begin():
+                    return await work(connection)
+
+        return await self._guard.run(attempt, retry=True)
+
     async def write[T](self, work: Work[T]) -> T:
         """One transaction, committed when the work returns. Never repeated."""
 

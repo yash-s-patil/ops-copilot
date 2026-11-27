@@ -1,14 +1,15 @@
 """Pending actions, and the facts a refund is judged on, in PostgreSQL."""
 
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy import ColumnElement, and_, exists, func, or_, select, text
+from sqlalchemy import ColumnElement, and_, exists, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql.expression import Executable
 
 from opscp_common.vocabulary import (
+    ALL_REGIONS,
     GOODWILL_DELAY,
     ISSUE_REFUND,
     REFUND_FAILED,
@@ -16,7 +17,9 @@ from opscp_common.vocabulary import (
     REQUEST_APPROVED,
     REQUEST_PROPOSED,
     SHIPPED,
+    SUPERVISOR_APPROVAL,
 )
+from opscp_mcp.adapters.postgres.audit import append
 from opscp_mcp.adapters.postgres.orders import last_new_scan_at
 from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.tables import (
@@ -26,7 +29,16 @@ from opscp_mcp.adapters.postgres.tables import (
     pending_actions,
     refunds,
 )
-from opscp_mcp.ports.actions import ActionRecord, NewAction, RefundCase, WriteTool
+from opscp_mcp.ports.actions import (
+    ActionRecord,
+    ActionsWanted,
+    Decided,
+    Decision,
+    NewAction,
+    RefundCase,
+    WriteTool,
+)
+from opscp_mcp.ports.controls import AuditEntry
 from opscp_mcp.ports.meridian import Scope
 
 # Requests on one order are stored one at a time: each takes this lock for its transaction.
@@ -38,9 +50,18 @@ _ACTION = select(
     pending_actions.c.args,
     pending_actions.c.args_hash,
     pending_actions.c.requester_oid,
+    pending_actions.c.requester_name,
+    pending_actions.c.requester_region,
     pending_actions.c.approval_kind,
     pending_actions.c.status,
+    pending_actions.c.approver_oid,
+    pending_actions.c.approver_name,
+    pending_actions.c.decided_at,
+    pending_actions.c.decision_reason,
+    pending_actions.c.policy_snapshot,
+    pending_actions.c.ticket_id,
     pending_actions.c.expires_at,
+    pending_actions.c.created_at,
 )
 _REFUNDED = (
     select(func.coalesce(func.sum(refunds.c.amount_minor), 0))
@@ -164,6 +185,78 @@ class PostgresPendingActions:
             return ActionRecord.model_validate(dict(row))
 
         return await self._database.write(store)
+
+    async def get(self, action_id: UUID) -> ActionRecord | None:
+        async def find(connection: AsyncConnection) -> ActionRecord | None:
+            found = await connection.execute(_ACTION.where(pending_actions.c.id == action_id))
+            row = found.mappings().one_or_none()
+            return None if row is None else ActionRecord.model_validate(dict(row))
+
+        return await self._database.lookup(find)
+
+    async def decide(
+        self, action_id: UUID, decision: Decision, entry: AuditEntry
+    ) -> Decided | None:
+        decided = (
+            update(pending_actions)
+            .where(
+                pending_actions.c.id == action_id,
+                pending_actions.c.status == REQUEST_PROPOSED,
+                pending_actions.c.expires_at > decision.decided_at,
+                pending_actions.c.args_hash == decision.seen_hash,
+            )
+            .values(
+                status=decision.status,
+                approver_oid=decision.approver_oid,
+                approver_name=decision.approver_name,
+                decision_reason=decision.reason,
+                decided_at=decision.decided_at,
+                expires_at=decision.expires_at,
+            )
+            .returning(*_ACTION.selected_columns)
+        )
+
+        async def store(connection: AsyncConnection) -> Decided | None:
+            row = (await connection.execute(decided)).mappings().one_or_none()
+            if row is None:
+                return None
+            return Decided(
+                action=ActionRecord.model_validate(dict(row)),
+                audit_id=await append(connection, entry),
+            )
+
+        return await self._database.write(store)
+
+    async def waiting(self, wanted: ActionsWanted, *, now: datetime) -> tuple[ActionRecord, ...]:
+        mine = pending_actions.c.requester_oid == wanted.requester_oid
+        visible = mine
+        if wanted.awaiting_supervisor_in is not None:
+            theirs = and_(
+                pending_actions.c.approval_kind == SUPERVISOR_APPROVAL,
+                pending_actions.c.status == REQUEST_PROPOSED,
+            )
+            if wanted.awaiting_supervisor_in != ALL_REGIONS:
+                theirs = and_(
+                    theirs, pending_actions.c.requester_region == wanted.awaiting_supervisor_in
+                )
+            visible = or_(mine, theirs)
+        listed = (
+            _ACTION.where(
+                visible,
+                pending_actions.c.status.in_((REQUEST_PROPOSED, REQUEST_APPROVED)),
+                pending_actions.c.expires_at > now,
+            )
+            .order_by(pending_actions.c.created_at.desc(), pending_actions.c.id)
+            .limit(wanted.limit)
+        )
+        if wanted.ticket_id is not None:
+            listed = listed.where(pending_actions.c.ticket_id == wanted.ticket_id)
+
+        async def find(connection: AsyncConnection) -> tuple[ActionRecord, ...]:
+            rows = (await connection.execute(listed)).mappings().all()
+            return tuple(ActionRecord.model_validate(dict(row)) for row in rows)
+
+        return await self._database.lookup(find)
 
 
 def _mine(requester_oid: object, tool: str, idempotency_key: str) -> Executable:

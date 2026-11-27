@@ -49,6 +49,7 @@ services:
       MCP_API_AUDIENCE: ${MCP_API_AUDIENCE:-}
       DEV_ISSUER: ${DEV_ISSUER:-}
       DEV_ISSUER_PUBLIC_KEY: ${DEV_ISSUER_PUBLIC_KEY:-}
+      APPROVAL_SIGNING_KEY: ${APPROVAL_SIGNING_KEY:-}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

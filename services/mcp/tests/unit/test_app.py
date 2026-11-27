@@ -8,7 +8,12 @@ from typing import Any
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -32,6 +37,7 @@ from opscp_mcp_testing.signin import (
     AUDIENCE,
     ISSUER,
     PUBLIC_URL,
+    approval_key_pem,
     bearer,
     dev_sign_in,
     public_key_setting,
@@ -368,6 +374,62 @@ def test_a_local_key_that_cannot_be_read_stops_the_application(
 
     with pytest.raises(ValidationError, match="DEV_ISSUER_PUBLIC_KEY"):
         create_app()
+
+
+def _setting(pem: str) -> str:
+    return base64.b64encode(pem.encode()).decode()
+
+
+@pytest.mark.usefixtures("configured")
+def test_locally_the_server_signs_approvals_with_the_key_it_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APPROVAL_SIGNING_KEY", _setting(approval_key_pem()))
+
+    settings = McpSettings()  # pyright: ignore[reportCallIssue] -- fields come from the environment
+
+    assert settings.approval_key_pem() == approval_key_pem()
+
+
+@pytest.mark.usefixtures("configured")
+def test_without_a_key_the_server_starts_and_holds_none() -> None:
+    settings = McpSettings()  # pyright: ignore[reportCallIssue] -- fields come from the environment
+
+    assert settings.approval_key_pem() is None
+
+
+@pytest.mark.parametrize("environment", ["demo", "prod"])
+def test_a_signing_key_handed_to_the_process_is_refused_in_azure(
+    configured: pytest.MonkeyPatch, environment: str
+) -> None:
+    _deploy(configured, environment, APPROVAL_SIGNING_KEY=_setting(approval_key_pem()))
+
+    with pytest.raises(ValidationError, match="APPROVAL_SIGNING_KEY is allowed only"):
+        create_app()
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "not base64!",
+        _setting("not a key"),
+        _setting(
+            Ed25519PrivateKey.generate()
+            .private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+            .decode()
+        ),
+    ],
+    ids=["not base64", "not a key", "not a P-256 key"],
+)
+def test_a_signing_key_that_cannot_sign_approvals_stops_the_application(
+    configured: pytest.MonkeyPatch, key: str
+) -> None:
+    configured.setenv("APPROVAL_SIGNING_KEY", key)
+
+    with pytest.raises(ValidationError, match="APPROVAL_SIGNING_KEY must be") as refused:
+        create_app()
+
+    assert key not in str(refused.value)
 
 
 def _database() -> DatabaseSettings:

@@ -40,20 +40,21 @@ _BROKEN_LINKS = text(
 _COUNT = text("SELECT count(*) FROM audit.audit_log")
 
 
+async def append(connection: AsyncConnection, entry: AuditEntry) -> int:
+    """Appends the entry inside the caller's transaction and returns its number."""
+    row = entry.model_dump() | {
+        "actor_roles": list(entry.actor_roles),
+        "args_redacted": json.dumps(entry.args_redacted),
+    }
+    return (await connection.execute(_APPEND, row)).scalar_one()
+
+
 class PostgresAuditTrail:
     def __init__(self, database: Database) -> None:
         self._database = database
 
     async def record(self, entry: AuditEntry) -> int:
-        row = entry.model_dump() | {
-            "actor_roles": list(entry.actor_roles),
-            "args_redacted": json.dumps(entry.args_redacted),
-        }
-
-        async def append(connection: AsyncConnection) -> int:
-            return (await connection.execute(_APPEND, row)).scalar_one()
-
-        return await self._database.write(append)
+        return await self._database.write(lambda connection: append(connection, entry))
 
 
 async def broken_links(connection: AsyncConnection, *, limit: int) -> tuple[int, list[int]]:

@@ -170,6 +170,11 @@ class ApprovalLimits(_Group):
     token_ttl_s: PositiveInt
     pending_ttl_self_s: PositiveInt
     pending_ttl_supervisor_s: PositiveInt
+    approved_ttl_s: PositiveInt
+    decision_reason_chars: PositiveInt
+    list_max: PositiveInt
+    route_timeout_s: PositiveInt
+    body_bytes_max: PositiveInt
     self_limit_minor: PositiveInt
 
 

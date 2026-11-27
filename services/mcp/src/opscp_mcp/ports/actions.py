@@ -7,6 +7,7 @@ from uuid import UUID
 from opscp_common.hashing import JsonValue
 from opscp_common.vocabulary import CallerRegion, OrderStatus, Region, Tier
 from opscp_mcp.ports.base import Record
+from opscp_mcp.ports.controls import AuditEntry
 from opscp_mcp.ports.meridian import Scope
 
 type WriteTool = Literal["update_ticket", "issue_refund"]
@@ -70,9 +71,46 @@ class ActionRecord(Record):
     args: dict[str, JsonValue]
     args_hash: str
     requester_oid: UUID
+    requester_name: str
+    requester_region: CallerRegion
     approval_kind: ApprovalKind
     status: ActionStatus
+    approver_oid: UUID | None
+    approver_name: str | None
+    decided_at: datetime | None
+    decision_reason: str | None
+    policy_snapshot: dict[str, JsonValue] | None
+    ticket_id: int | None
     expires_at: datetime
+    created_at: datetime
+
+
+class Decision(Record):
+    """What a person decided about a proposed action, and until when the outcome stands."""
+
+    status: Literal["approved", "rejected"]
+    seen_hash: str
+    """The fingerprint the decision was made on. The action is left alone if it differs."""
+    approver_oid: UUID
+    approver_name: str
+    reason: str | None
+    decided_at: datetime
+    expires_at: datetime
+
+
+class Decided(Record):
+    action: ActionRecord
+    audit_id: int
+
+
+class ActionsWanted(Record):
+    """The live actions a person asked for, or that wait for someone of their standing."""
+
+    requester_oid: UUID
+    awaiting_supervisor_in: CallerRegion | None
+    """Set for a caller who may approve: the region whose requests they may decide."""
+    ticket_id: int | None
+    limit: int
 
 
 class PendingActions(Protocol):
@@ -89,4 +127,23 @@ class PendingActions(Protocol):
         has a refund request waiting. Requests on one order are taken one at a time, so two
         that arrive together cannot both be stored.
         """
+        ...
+
+    async def get(self, action_id: UUID) -> ActionRecord | None:
+        """Any action by its id. Who may see it is for the caller of this to decide."""
+        ...
+
+    async def decide(
+        self, action_id: UUID, decision: Decision, entry: AuditEntry
+    ) -> Decided | None:
+        """Records the decision, and its audit entry with it, or neither.
+
+        The action must still be proposed, not past its expiry, and carry the fingerprint
+        the decision was made on. Returns None, changing nothing, when it does not: two
+        decisions cannot both be taken.
+        """
+        ...
+
+    async def waiting(self, wanted: ActionsWanted, *, now: datetime) -> tuple[ActionRecord, ...]:
+        """Proposed and approved actions that have not expired, newest first."""
         ...

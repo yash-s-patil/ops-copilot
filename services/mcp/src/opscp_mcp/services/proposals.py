@@ -115,7 +115,7 @@ def summary_of(tool: WriteTool, args: dict[str, JsonValue]) -> str:
     return f"Ticket {args['ticket_id']}: " + ", ".join(change for change in changes if change)
 
 
-def _text(value: str, name: str, max_chars: int, max_bytes: int | None = None) -> str:
+def readable_text(value: str, name: str, max_chars: int, max_bytes: int | None = None) -> str:
     """The text as it will be kept: what a screen cannot show is replaced by a space.
 
     Line breaks stay, and so do the joiners some scripts need. What a person approves is this
@@ -189,7 +189,7 @@ class ProposalService:
             "order_id": _id(request.order_id, "order_id"),
             "amount_minor": _amount(request.amount_minor),
             "reason_code": request.reason_code,
-            "reason_text": _text(
+            "reason_text": readable_text(
                 request.reason_text, "reason_text", refund.reason_chars, refund.reason_bytes
             ),
         }
@@ -264,7 +264,7 @@ class ProposalService:
         if update.status is not None:
             args["status"] = update.status
         if update.note is not None:
-            args["note"] = _text(update.note, "note", self._limits.ticket.note_write_chars)
+            args["note"] = readable_text(update.note, "note", self._limits.ticket.note_write_chars)
         if update.escalate_to is not None:
             args["escalate_to"] = update.escalate_to
         if update.recommendation is not None:
@@ -272,7 +272,7 @@ class ProposalService:
             args["recommendation"] = {
                 "amount_minor": _amount(update.recommendation.amount_minor),
                 "reason_code": update.recommendation.reason_code,
-                "reason_text": _text(
+                "reason_text": readable_text(
                     update.recommendation.reason_text,
                     "recommendation.reason_text",
                     refund.reason_chars,

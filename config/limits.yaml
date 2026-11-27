@@ -90,6 +90,11 @@ approval:
   token_ttl_s: 120
   pending_ttl_self_s: 900
   pending_ttl_supervisor_s: 86400
+  approved_ttl_s: 86400
+  decision_reason_chars: 300
+  list_max: 25
+  route_timeout_s: 5
+  body_bytes_max: 4096
   self_limit_minor: 500000
 goodwill:
   premium:

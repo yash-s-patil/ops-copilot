@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
 from opscp_mcp.adapters.blob import BlobPolicies, classify
+from opscp_mcp.adapters.local_signer import LocalApprovalSigner
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
 from opscp_mcp.adapters.postgres.actions import PostgresPendingActions, PostgresRefundCases
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail, broken_links
@@ -20,6 +21,7 @@ from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.main import build_app
+from opscp_mcp.services.approvals import ApprovalService
 from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
@@ -41,7 +43,7 @@ from opscp_mcp_testing.server import (
     fake_services,
     server_with,
 )
-from opscp_mcp_testing.signin import dev_sign_in
+from opscp_mcp_testing.signin import approval_key_pem, dev_sign_in
 from opscp_mcp_testing.world import (
     ASHA,
     AWAITING_SUPERVISOR,
@@ -102,6 +104,12 @@ def _services(
             backend.tickets,
             PostgresRefundCases(database),
             PostgresPendingActions(database),
+            limits,
+            lambda: NOW,
+        ),
+        approvals=ApprovalService(
+            PostgresPendingActions(database),
+            LocalApprovalSigner(approval_key_pem()),
             limits,
             lambda: NOW,
         ),

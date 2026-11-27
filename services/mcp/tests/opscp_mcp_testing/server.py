@@ -15,10 +15,12 @@ from mcp.types import TextContent, TextResourceContents
 from opscp_common.errors import ErrorBody, PermissionDeniedError
 from opscp_common.hashing import JsonValue
 from opscp_common.limits import Limits
+from opscp_mcp.adapters.local_signer import LocalApprovalSigner
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.server import build_server
+from opscp_mcp.services.approvals import ApprovalService
 from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
@@ -32,6 +34,7 @@ from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
 from opscp_mcp_testing.fakes.knowledge import FakePolicies
 from opscp_mcp_testing.fakes.meridian import FakeCustomers, FakeOrders, FakeTickets
 from opscp_mcp_testing.paths import POLICIES_DIR, RUNBOOKS_DIR
+from opscp_mcp_testing.signin import approval_key_pem
 from opscp_mcp_testing.world import NOW, WORLD, World
 
 UNLIMITED = 1_000_000
@@ -69,6 +72,9 @@ def fake_services(identity: Identity, limits: Limits, world: World = WORLD) -> S
         tickets=TicketService(FakeTickets(world), limits, lambda: NOW),
         proposals=ProposalService(
             FakeTickets(world), FakeRefundCases(world, actions), actions, limits, lambda: NOW
+        ),
+        approvals=ApprovalService(
+            actions, LocalApprovalSigner(approval_key_pem()), limits, lambda: NOW
         ),
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(FakePolicies.from_directory(POLICIES_DIR), limits),

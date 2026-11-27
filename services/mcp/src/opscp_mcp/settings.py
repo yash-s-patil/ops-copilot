@@ -4,8 +4,12 @@ import base64
 from typing import Literal, Self
 from uuid import UUID
 
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    load_pem_public_key,
+)
 from pydantic import (
     AnyHttpUrl,
     BaseModel,
@@ -13,6 +17,7 @@ from pydantic import (
     DirectoryPath,
     Field,
     FilePath,
+    SecretStr,
     field_validator,
     model_validator,
 )
@@ -23,6 +28,7 @@ from opscp_common.settings import LOCAL, Environment
 
 SERVICE_NAME = "mcp"
 ENTRA_AUTHORITY = "login.microsoftonline.com"
+_APPROVAL_CURVE = "secp256r1"
 
 type AuthMode = Literal["entra", "eval", "dev"]
 
@@ -66,9 +72,15 @@ class McpSettings(BaseSettings):
     mcp_api_client_id: UUID | None = None
     dev_issuer: str | None = Field(default=None, pattern=r"^https?://[^\s/]+/?$")
     dev_issuer_public_key: str | None = None
+    approval_signing_key: SecretStr | None = None
 
     @field_validator(
-        "tenant_id", "mcp_api_client_id", "dev_issuer", "dev_issuer_public_key", mode="before"
+        "tenant_id",
+        "mcp_api_client_id",
+        "dev_issuer",
+        "dev_issuer_public_key",
+        "approval_signing_key",
+        mode="before",
     )
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
@@ -77,11 +89,33 @@ class McpSettings(BaseSettings):
     @model_validator(mode="after")
     def _sign_in_is_complete(self) -> Self:
         self.sign_in()
+        self.approval_key_pem()
         return self
 
     @property
     def json_logs(self) -> bool:
         return self.environment != LOCAL
+
+    def approval_key_pem(self) -> str | None:
+        """The key approvals are signed with on a developer's machine, or None.
+
+        Azure keeps the key in Key Vault, where it cannot be read, so a key handed to the
+        process is accepted only when ENVIRONMENT is local.
+        """
+        if self.approval_signing_key is None:
+            return None
+        if self.environment != LOCAL:
+            raise ValueError("APPROVAL_SIGNING_KEY is allowed only when ENVIRONMENT is local")
+        try:
+            pem = base64.b64decode(self.approval_signing_key.get_secret_value(), validate=True)
+            key = load_pem_private_key(pem, password=None)
+            if not isinstance(key, EllipticCurvePrivateKey) or key.curve.name != _APPROVAL_CURVE:
+                raise TypeError
+        except (ValueError, TypeError) as error:
+            raise ValueError(
+                "APPROVAL_SIGNING_KEY must be a base64-encoded PEM P-256 private key"
+            ) from error
+        return pem.decode("ascii")
 
     def sign_in(self) -> SignIn:
         """How callers prove who they are. A mode made for testing never runs in Azure."""

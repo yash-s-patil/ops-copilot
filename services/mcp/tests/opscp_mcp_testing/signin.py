@@ -7,7 +7,7 @@ from typing import Any
 
 from fastmcp.server.auth import RemoteAuthProvider
 from joserfc import jwt
-from joserfc.jwk import OctKey, RSAKey
+from joserfc.jwk import ECKey, OctKey, RSAKey
 from pydantic import AnyHttpUrl
 
 from opscp_mcp.authz.identity import Identity
@@ -77,3 +77,9 @@ def dev_sign_in() -> RemoteAuthProvider:
         DevSignIn(issuer=ISSUER, audience=AUDIENCE, public_key_pem=public_pem()),
         AnyHttpUrl(PUBLIC_URL),
     )
+
+
+@cache
+def approval_key_pem() -> str:
+    """A P-256 key for signing approvals in tests, made once for the run."""
+    return ECKey.generate_key("P-256", private=True).as_pem(private=True).decode("ascii")

@@ -93,6 +93,11 @@ def reported(error: Exception, *, during: str) -> ErrorBody:
     if body is not None:
         _LOG.info("request_refused", during=during, code=body.code.value)
         return body
+    return defect(error, during=during)
+
+
+def defect(error: BaseException, *, during: str) -> ErrorBody:
+    """Logs a failure that is ours, by type and place, and gives the body that says only that."""
     root = _chain(error)[-1]
     _LOG.error("request_failed", during=during, error=type(root).__name__, where=_frames(root))
     return InternalError().body()
