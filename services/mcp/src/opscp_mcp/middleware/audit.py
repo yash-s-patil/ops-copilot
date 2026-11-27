@@ -8,6 +8,7 @@ too: what the tool did has still been done.
 
 import asyncio
 import time
+from collections.abc import Collection
 
 import mcp.types as mt
 import structlog
@@ -38,9 +39,10 @@ def _error_code(failure: BaseException) -> str:
 
 
 class Audit(Middleware):
-    def __init__(self, *, text_chars: int, timeout_s: int) -> None:
+    def __init__(self, *, text_chars: int, timeout_s: int, writes: Collection[str] = ()) -> None:
         self._text_chars = text_chars
         self._timeout_s = timeout_s
+        self._writes = frozenset(writes)
 
     async def on_call_tool(
         self,
@@ -82,7 +84,11 @@ class Audit(Middleware):
             actor_roles=tuple(sorted(caller.roles)),
             actor_kind="user",
             target=UNKNOWN_TOOL if tool is None else tool.name,
-            action="deny" if denied else "call",
+            action="deny"
+            if denied
+            else "propose"
+            if context.message.name in self._writes
+            else "call",
             args_redacted=redacted(context.message.arguments or {}, declared, self._text_chars),
             outcome="denied" if denied else "ok" if code is None else "error",
             error_code=code,

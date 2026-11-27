@@ -32,7 +32,7 @@ from opscp_mcp_testing.server import (
     server_for,
     text_of,
 )
-from opscp_mcp_testing.world import ASHA, NOW, PLAIN, STUCK_ON_ADDRESS
+from opscp_mcp_testing.world import ASHA, NEVER_SCANNED, NOW, PLAIN, STUCK_ON_ADDRESS
 
 VALID_CALLS: dict[str, dict[str, Any]] = {
     "lookup_customer": {"customer_id": ASHA},
@@ -41,7 +41,16 @@ VALID_CALLS: dict[str, dict[str, Any]] = {
     "get_ticket": {"ticket_id": PLAIN},
     "search_runbooks": {"query": "carrier exception"},
     "get_policy_document": {"name": "refund-policy"},
+    "update_ticket": {"ticket_id": PLAIN, "note": "Called the customer.", "idempotency_key": "k-1"},
+    "issue_refund": {
+        "order_id": NEVER_SCANNED,
+        "amount_minor": 50000,
+        "reason_code": "goodwill_delay",
+        "reason_text": "No carrier scan for 80 hours.",
+        "idempotency_key": "k-2",
+    },
 }
+L2_ONLY = {"issue_refund"}
 VALID_PROMPTS: dict[str, dict[str, Any]] = {
     "investigate_order": {"order_id": 4471},
     "draft_customer_reply": {"ticket_id": 2207, "tone": "firm"},
@@ -63,10 +72,10 @@ async def nobody(limits: Limits) -> AsyncGenerator[TestClient]:
 
 
 async def test_the_valid_calls_cover_every_tool_and_prompt(priya: TestClient) -> None:
-    assert {tool.name for tool in await priya.list_tools()} == set(VALID_CALLS)
+    assert {tool.name for tool in await priya.list_tools()} == set(VALID_CALLS) - L2_ONLY
     assert {prompt.name for prompt in await priya.list_prompts()} == set(VALID_PROMPTS)
     for tool, arguments in VALID_CALLS.items():
-        assert not (await call_with(priya, tool, arguments)).is_error
+        assert (await call_with(priya, tool, arguments)).is_error is (tool in L2_ONLY)
 
 
 def _is_denial(result: CallToolResult) -> bool:

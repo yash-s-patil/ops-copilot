@@ -57,6 +57,8 @@ READ_TOOLS = [
     "get_policy_document",
 ]
 HEALTH = "meridian://server/health"
+L1_TOOLS = [*READ_TOOLS, "update_ticket"]
+L2_TOOLS = [*L1_TOOLS, "issue_refund"]
 READ_RESOURCES = [
     "meridian://reference/order-lifecycle",
     "meridian://policy/refund/summary",
@@ -212,10 +214,10 @@ def test_a_token_in_the_address_is_not_read(http: TestClient) -> None:
 
 
 SHOWN: dict[str, tuple[Identity, list[str], list[str], list[str]]] = {
-    "an L1 engineer": (PRIYA, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
-    "an L1 engineer in the south": (ROHAN, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
-    "an L2 engineer": (ARJUN, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
-    "a supervisor": (KAVITA, READ_TOOLS, READ_RESOURCES, READ_PROMPTS),
+    "an L1 engineer": (PRIYA, L1_TOOLS, READ_RESOURCES, READ_PROMPTS),
+    "an L1 engineer in the south": (ROHAN, L1_TOOLS, READ_RESOURCES, READ_PROMPTS),
+    "an L2 engineer": (ARJUN, L2_TOOLS, READ_RESOURCES, READ_PROMPTS),
+    "a supervisor": (KAVITA, L2_TOOLS, READ_RESOURCES, READ_PROMPTS),
     "an administrator": (SAM, [], [HEALTH], []),
 }
 
@@ -380,7 +382,7 @@ def test_a_token_from_the_tenant_for_this_application_is_accepted(entra: TestCli
     by_client_id = _result(entra, _entra_token(), "tools/list")
     by_application_uri = _result(entra, _entra_token(aud=AUDIENCE), "tools/list")
 
-    assert [tool["name"] for tool in by_client_id["tools"]] == READ_TOOLS
+    assert [tool["name"] for tool in by_client_id["tools"]] == L2_TOOLS
     assert by_application_uri == by_client_id
 
 

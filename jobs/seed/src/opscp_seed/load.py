@@ -75,11 +75,12 @@ _INSERT_PENDING_ACTIONS = text(
     """
     INSERT INTO control.pending_actions
         (id, tool, args, args_hash, requester_oid, requester_name, requester_region,
-         approval_kind, policy_snapshot, idempotency_key, ticket_id, expires_at, created_at)
+         approval_kind, policy_snapshot, idempotency_key, ticket_id, order_id, expires_at,
+         created_at)
     VALUES
         (:id, :tool, :args, :args_hash, :requester_oid, :requester_name, :requester_region,
-         :approval_kind, :policy_snapshot, :idempotency_key, :ticket_id, :expires_at,
-         :created_at)
+         :approval_kind, :policy_snapshot, :idempotency_key, :ticket_id,
+         CAST(:args ->> 'order_id' AS bigint), :expires_at, :created_at)
     """
 ).bindparams(bindparam("args", type_=JSONB), bindparam("policy_snapshot", type_=JSONB))
 

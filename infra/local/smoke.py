@@ -12,7 +12,7 @@ from fastmcp import Client
 
 MCP_PATH = "/mcp"
 TIMEOUT_S = 10
-EXPECTED_TOOLS = {"priya": 6, "sam": 0}
+EXPECTED_TOOLS = {"priya": 7, "arjun": 8, "sam": 0}
 
 
 async def _tools_listed(url: str, user: str) -> int:

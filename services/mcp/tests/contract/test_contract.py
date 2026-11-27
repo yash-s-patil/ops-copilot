@@ -29,7 +29,7 @@ from opscp_common.errors import (
 )
 from opscp_common.limits import Limits
 from opscp_mcp.server import INSTRUCTIONS, SERVER_NAME
-from opscp_mcp_testing.identities import PRIYA
+from opscp_mcp_testing.identities import KAVITA
 from opscp_mcp_testing.server import TestClient, connected, server_for
 
 SNAPSHOTS = Path(__file__).parent / "snapshots"
@@ -67,7 +67,7 @@ def _plain(model: Any) -> dict[str, Any]:
 
 @pytest.fixture
 async def client(limits: Limits) -> AsyncGenerator[TestClient]:
-    async with connected(server_for(PRIYA, limits)) as connection:
+    async with connected(server_for(KAVITA, limits)) as connection:
         yield connection
 
 

@@ -24,9 +24,9 @@ _NEW_PENDING_ACTION = text(
     """
     INSERT INTO control.pending_actions
         (tool, args, args_hash, requester_oid, requester_name, requester_region,
-         approval_kind, idempotency_key, expires_at)
+         approval_kind, idempotency_key, order_id, expires_at)
     VALUES ('issue_refund', '{}'::jsonb, 'hash', :oid, 'West Engineer', 'west', 'self',
-            :key, now() + interval '15 minutes')
+            :key, :order_id, now() + interval '15 minutes')
     RETURNING id
     """
 )
@@ -135,7 +135,8 @@ async def test_refund_cannot_be_created_across_regions(
     async with transaction(mcp_app, region="west") as connection:
         pending_action_id = (
             await connection.execute(
-                _NEW_PENDING_ACTION, {"oid": WEST_ENGINEER, "key": f"{order_id}-{region}"}
+                _NEW_PENDING_ACTION,
+                {"oid": WEST_ENGINEER, "key": f"{order_id}-{region}", "order_id": order_id},
             )
         ).scalar_one()
 
@@ -154,7 +155,9 @@ async def test_refund_cannot_be_created_across_regions(
 async def test_refund_can_be_created_in_the_callers_own_region(mcp_app: AsyncEngine) -> None:
     async with transaction(mcp_app, region="west") as connection:
         pending_action_id = (
-            await connection.execute(_NEW_PENDING_ACTION, {"oid": WEST_ENGINEER, "key": "own"})
+            await connection.execute(
+                _NEW_PENDING_ACTION, {"oid": WEST_ENGINEER, "key": "own", "order_id": WEST["order"]}
+            )
         ).scalar_one()
         result = await connection.execute(
             _NEW_REFUND,

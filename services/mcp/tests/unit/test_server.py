@@ -63,15 +63,19 @@ async def sam(limits: Limits) -> AsyncGenerator[TestClient]:
         yield client
 
 
-async def test_the_six_read_tools_are_published_read_only_with_both_schemas(
+async def test_the_tools_are_published_with_both_schemas_and_say_whether_they_only_read(
     priya: TestClient,
 ) -> None:
     tools = await priya.list_tools()
 
-    assert [tool.name for tool in tools] == TOOLS
+    assert [tool.name for tool in tools] == [*TOOLS, "update_ticket"]
     for tool in tools:
         assert tool.annotations is not None
-        assert (tool.annotations.read_only_hint, tool.annotations.idempotent_hint) == (True, True)
+        assert tool.annotations.read_only_hint is (tool.name in TOOLS)
+        assert (tool.annotations.idempotent_hint, tool.annotations.destructive_hint) == (
+            True,
+            False,
+        )
         assert tool.input_schema["additionalProperties"] is False
         assert tool.output_schema is not None
         assert set(tool.output_schema["required"]) == {"data", "provenance"}
@@ -219,7 +223,7 @@ async def test_an_administrator_is_refused_by_every_tool(
 
 
 async def test_a_tool_that_does_not_exist_is_reported_in_the_same_body(priya: TestClient) -> None:
-    body = error_of(await call(priya, "issue_refund", order_id=STUCK_ON_ADDRESS))
+    body = error_of(await call(priya, "approve_refund", order_id=STUCK_ON_ADDRESS))
 
     assert (body.code, body.message) == (
         ErrorCode.NOT_FOUND,

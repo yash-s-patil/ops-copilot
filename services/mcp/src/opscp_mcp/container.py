@@ -14,6 +14,7 @@ from opscp_common.settings import StorageSettings
 from opscp_mcp.adapters.blob import BlobPolicies
 from opscp_mcp.adapters.blob import classify as classify_blob
 from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
+from opscp_mcp.adapters.postgres.actions import PostgresPendingActions, PostgresRefundCases
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail
 from opscp_mcp.adapters.postgres.customers import PostgresCustomers
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
@@ -30,6 +31,7 @@ from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
+from opscp_mcp.services.proposals import ProposalService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
@@ -38,9 +40,11 @@ from opscp_mcp.tools.names import (
     GET_ORDER,
     GET_POLICY_DOCUMENT,
     GET_TICKET,
+    ISSUE_REFUND,
     LIST_TICKETS,
     LOOKUP_CUSTOMER,
     SEARCH_RUNBOOKS,
+    UPDATE_TICKET,
 )
 
 _ID_HEX_CHARS = 12
@@ -67,6 +71,7 @@ class Services:
     runbooks: RunbookService
     policies: PolicyService
     references: ReferenceService
+    proposals: ProposalService
     health: HealthService
     clock: Clock = utc_now
     new_result_id: Callable[[], str] = new_result_id
@@ -83,6 +88,8 @@ RELIES_ON = {
         GET_TICKET,
         SEARCH_RUNBOOKS,
         GET_POLICY_DOCUMENT,
+        UPDATE_TICKET,
+        ISSUE_REFUND,
     ),
     BLOB: (GET_POLICY_DOCUMENT,),
 }
@@ -117,6 +124,7 @@ def production_services(
         )
         blob = guard_for(BLOB, limits, timeout_s=limits.timeout.blob_s, classify=classify_blob)
         database = Database(engine, postgres)
+        tickets = PostgresTickets(database)
         async with policies_container(storage, sdk_retries=0) as container:
             policies = BlobPolicies(container, blob, max_bytes=limits.policy.document_bytes)
             yield Services(
@@ -127,7 +135,14 @@ def production_services(
                 audit=PostgresAuditTrail(database),
                 customers=CustomerService(PostgresCustomers(database)),
                 orders=OrderService(PostgresOrders(database), limits, utc_now),
-                tickets=TicketService(PostgresTickets(database), limits, utc_now),
+                tickets=TicketService(tickets, limits, utc_now),
+                proposals=ProposalService(
+                    tickets,
+                    PostgresRefundCases(database),
+                    PostgresPendingActions(database),
+                    limits,
+                    utc_now,
+                ),
                 runbooks=RunbookService(runbooks, limits),
                 policies=PolicyService(policies, limits),
                 references=ReferenceService(runbooks, limits),

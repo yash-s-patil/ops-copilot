@@ -131,6 +131,7 @@ def test_the_tools_are_listed_over_http(http: TestClient) -> None:
         "get_ticket",
         "search_runbooks",
         "get_policy_document",
+        "update_ticket",
     ]
 
 
@@ -413,7 +414,7 @@ def test_the_application_starts_from_its_environment_and_serves_only_the_signed_
         listed = _rpc(http, "tools/list", {})
 
     assert unsigned.status_code == 401
-    assert len(listed["tools"]) == 6
+    assert len(listed["tools"]) == 7
 
 
 @pytest.mark.parametrize(
