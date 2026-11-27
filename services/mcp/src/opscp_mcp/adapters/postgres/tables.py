@@ -1,7 +1,9 @@
 """The meridian tables and columns that the server reads."""
 
-from sqlalchemy import BigInteger, Column, DateTime, Integer, MetaData, Table, Text, Uuid
+from sqlalchemy import BigInteger, Column, DateTime, Integer, MetaData, Table, Text, Uuid, or_
 from sqlalchemy.dialects.postgresql import JSONB
+
+from opscp_common.vocabulary import PAYMENT_OUTCOME_UNKNOWN, REFUND_FAILED
 
 _core = MetaData(schema="core")
 _control = MetaData(schema="control")
@@ -112,4 +114,9 @@ pending_actions = Table(
     Column("result", JSONB),
     Column("expires_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True)),
+)
+
+# A refund counts against its order unless its payment is known to have failed.
+REFUND_COUNTS = or_(
+    refunds.c.status != REFUND_FAILED, refunds.c.failure_reason == PAYMENT_OUTCOME_UNKNOWN
 )

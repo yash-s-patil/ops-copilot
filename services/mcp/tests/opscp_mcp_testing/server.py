@@ -29,6 +29,7 @@ from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.proposals import ProposalService
+from opscp_mcp.services.refunds import RefundService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
@@ -37,6 +38,7 @@ from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
 from opscp_mcp_testing.fakes.execution import FakeExecutions
 from opscp_mcp_testing.fakes.knowledge import FakePolicies
 from opscp_mcp_testing.fakes.meridian import FakeCustomers, FakeOrders, FakeTickets
+from opscp_mcp_testing.fakes.refunds import FakeRefundRetries
 from opscp_mcp_testing.paths import POLICIES_DIR, RUNBOOKS_DIR
 from opscp_mcp_testing.signin import approval_key_pem
 from opscp_mcp_testing.world import NOW, WORLD, World
@@ -69,6 +71,8 @@ class FakeWrites:
     executions: FakeExecutions
     proposals: ProposalService
     approvals: ApprovalService
+    retries: FakeRefundRetries
+    refunds: RefundService
 
 
 def fake_writes(
@@ -81,6 +85,7 @@ def fake_writes(
     signer = signer or LocalApprovalSigner(approval_key_pem())
     actions = FakePendingActions(audit)
     executions = FakeExecutions(world, actions, audit, clock)
+    retries = FakeRefundRetries(world, executions.cases, audit)
     return FakeWrites(
         actions=actions,
         executions=executions,
@@ -93,6 +98,8 @@ def fake_writes(
             clock,
         ),
         approvals=ApprovalService(actions, signer, limits, clock),
+        retries=retries,
+        refunds=RefundService(retries, limits.approval, clock),
     )
 
 
@@ -112,6 +119,7 @@ def fake_services(identity: Identity, limits: Limits, world: World = WORLD) -> S
         tickets=TicketService(FakeTickets(world), limits, lambda: NOW),
         proposals=writes.proposals,
         approvals=writes.approvals,
+        refunds=writes.refunds,
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(FakePolicies.from_directory(POLICIES_DIR), limits),
         references=ReferenceService(runbooks, limits),

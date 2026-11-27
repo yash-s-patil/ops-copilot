@@ -12,7 +12,6 @@ from opscp_common.vocabulary import (
     ALL_REGIONS,
     GOODWILL_DELAY,
     ISSUE_REFUND,
-    REFUND_FAILED,
     REFUND_UNSETTLED,
     REQUEST_APPROVED,
     REQUEST_PROPOSED,
@@ -23,6 +22,7 @@ from opscp_mcp.adapters.postgres.audit import append
 from opscp_mcp.adapters.postgres.orders import last_new_scan_at
 from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.tables import (
+    REFUND_COUNTS,
     customers,
     order_events,
     orders,
@@ -64,11 +64,12 @@ _ACTION = select(
     pending_actions.c.expires_at,
     pending_actions.c.created_at,
 )
-_REFUNDED = (
-    select(func.coalesce(func.sum(refunds.c.amount_minor), 0))
-    .where(refunds.c.order_id == orders.c.id, refunds.c.status != REFUND_FAILED)
-    .scalar_subquery()
-)
+
+
+def _counted_refunds(leaving_out: int | None) -> ColumnElement[bool]:
+    """The order's refunds that count against it, without the one being judged, if any."""
+    counted = and_(refunds.c.order_id == orders.c.id, REFUND_COUNTS)
+    return counted if leaving_out is None else and_(counted, refunds.c.id != leaving_out)
 
 
 def _live_refund_request(now: datetime) -> ColumnElement[bool]:
@@ -83,12 +84,12 @@ def _of_kind(kind: str) -> ColumnElement[bool]:
     return and_(order_events.c.order_id == orders.c.id, order_events.c.event_type == kind)
 
 
-def _case(order_id: int, now: datetime) -> Executable:
-    goodwill_given = exists().where(
-        refunds.c.order_id == orders.c.id,
-        refunds.c.reason_code == GOODWILL_DELAY,
-        refunds.c.status != REFUND_FAILED,
+def _case(order_id: int, now: datetime, leaving_out: int | None) -> Executable:
+    counted = _counted_refunds(leaving_out)
+    refunded = (
+        select(func.coalesce(func.sum(refunds.c.amount_minor), 0)).where(counted).scalar_subquery()
     )
+    goodwill_given = exists().where(counted, refunds.c.reason_code == GOODWILL_DELAY)
     request_waiting = exists().where(
         _live_refund_request(now), pending_actions.c.order_id == orders.c.id
     )
@@ -100,7 +101,7 @@ def _case(order_id: int, now: datetime) -> Executable:
             orders.c.status,
             orders.c.status_changed_at,
             orders.c.amount_minor,
-            _REFUNDED.label("refunded_minor"),
+            refunded.label("refunded_minor"),
             select(func.max(order_events.c.occurred_at))
             .where(_of_kind("carrier_exception"))
             .scalar_subquery()
@@ -121,10 +122,14 @@ def lock_key(order_id: int) -> str:
 
 
 async def refund_case(
-    connection: AsyncConnection, order_id: int, now: datetime
+    connection: AsyncConnection, order_id: int, now: datetime, *, leaving_out: int | None = None
 ) -> RefundCase | None:
-    """The facts of the order as the connection's scope sees them, or None."""
-    row = (await connection.execute(_case(order_id, now))).mappings().one_or_none()
+    """The facts of the order as the connection's scope sees them, or None.
+
+    `leaving_out` names a refund to judge the order without: the one being sent round again.
+    """
+    statement = _case(order_id, now, leaving_out)
+    row = (await connection.execute(statement)).mappings().one_or_none()
     if row is None:
         return None
     shipped = row["status"] == SHIPPED

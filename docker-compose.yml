@@ -63,6 +63,79 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  payments-sim:
+    build:
+      context: .
+      dockerfile: services/payments/Dockerfile
+    command: ["python", "-m", "opscp_payments.sim"]
+    environment:
+      ENVIRONMENT: local
+      AUTH_MODE: dev
+      PAYMENTS_API_AUDIENCE: ${PAYMENTS_API_AUDIENCE:-}
+      DEV_ISSUER: ${PAYMENTS_DEV_ISSUER:-}
+      DEV_ISSUER_PUBLIC_KEY: ${PAYMENTS_DEV_PUBLIC_KEY:-}
+      SIM_ALLOW_FORCED_OUTCOME: "true"
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 6
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  payments-worker:
+    build:
+      context: .
+      dockerfile: services/payments/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      DATABASE_HOST: postgres
+      DATABASE_NAME: meridian
+      DATABASE_USER: payments_worker
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Run `make env` to create .env first}
+      AUTH_MODE: dev
+      PAYMENTS_URL: http://payments-sim:8080
+      PAYMENTS_API_AUDIENCE: ${PAYMENTS_API_AUDIENCE:-}
+      DEV_ISSUER: ${PAYMENTS_DEV_ISSUER:-}
+      # A key of the worker's own. The key that signs people in is given to no container.
+      DEV_ISSUER_PRIVATE_KEY: ${PAYMENTS_DEV_PRIVATE_KEY:-}
+      CHAOS_ENABLED: "true"
+      HEARTBEAT_FILE: /tmp/heartbeat
+    tmpfs:
+      - /tmp
+    healthcheck:
+      # The worker listens on nothing. It touches a file after every poll; alive means the
+      # file is fresh.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/heartbeat') > 30)"
+      interval: 5s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
+    depends_on:
+      postgres:
+        condition: service_healthy
+      payments-sim:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   postgres-data:
   azurite-data:

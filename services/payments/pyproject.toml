@@ -1,0 +1,25 @@
+[project]
+name = "opscp-payments"
+version = "0.1.0"
+description = "Hands approved refunds to the payment service, and a simulator standing in for that service."
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "asyncpg>=0.32.0",
+    "azure-identity>=1.17",
+    "cryptography>=50",
+    "fastapi>=0.133",
+    "httpx2>=2.16",
+    "joserfc>=1.8",
+    "opscp-common",
+    "pydantic-settings>=2.16.3",
+    "sqlalchemy[asyncio]>=2.1.9",
+    "uvicorn>=0.54",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+opscp-common = { workspace = true }

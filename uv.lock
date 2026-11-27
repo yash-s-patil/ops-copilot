@@ -7,6 +7,7 @@ members = [
     "ops-copilot",
     "opscp-common",
     "opscp-mcp",
+    "opscp-payments",
     "opscp-seed",
 ]
 
@@ -1090,6 +1091,37 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.133" },
     { name = "fastmcp", specifier = ">=4.2" },
     { name = "opscp-common", extras = ["blob"], editable = "packages/opscp_common" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.9" },
+    { name = "uvicorn", specifier = ">=0.54" },
+]
+
+[[package]]
+name = "opscp-payments"
+version = "0.1.0"
+source = { editable = "services/payments" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "azure-identity" },
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx2" },
+    { name = "joserfc" },
+    { name = "opscp-common" },
+    { name = "pydantic-settings" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.32.0" },
+    { name = "azure-identity", specifier = ">=1.17" },
+    { name = "cryptography", specifier = ">=50" },
+    { name = "fastapi", specifier = ">=0.133" },
+    { name = "httpx2", specifier = ">=2.16" },
+    { name = "joserfc", specifier = ">=1.8" },
+    { name = "opscp-common", editable = "packages/opscp_common" },
+    { name = "pydantic-settings", specifier = ">=2.16.3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1.9" },
     { name = "uvicorn", specifier = ">=0.54" },
 ]

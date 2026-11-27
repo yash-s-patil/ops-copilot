@@ -21,6 +21,7 @@ from opscp_mcp.adapters.postgres.customers import PostgresCustomers
 from opscp_mcp.adapters.postgres.execution import PostgresExecutions
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
 from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
+from opscp_mcp.adapters.postgres.refunds import PostgresRefundRetries
 from opscp_mcp.adapters.postgres.session import Database
 from opscp_mcp.adapters.postgres.session import classify as classify_postgres
 from opscp_mcp.adapters.postgres.tickets import PostgresTickets
@@ -37,6 +38,7 @@ from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.proposals import ProposalService
 from opscp_mcp.services.rate import OneAtATime
+from opscp_mcp.services.refunds import RefundService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
@@ -78,6 +80,7 @@ class Services:
     references: ReferenceService
     proposals: ProposalService
     approvals: ApprovalService
+    refunds: RefundService
     health: HealthService
     clock: Clock = utc_now
     new_result_id: Callable[[], str] = new_result_id
@@ -158,6 +161,7 @@ def production_services(
                     utc_now,
                 ),
                 approvals=ApprovalService(actions, signer, limits, utc_now),
+                refunds=RefundService(PostgresRefundRetries(database), limits.approval, utc_now),
                 runbooks=RunbookService(runbooks, limits),
                 policies=PolicyService(policies, limits),
                 references=ReferenceService(runbooks, limits),

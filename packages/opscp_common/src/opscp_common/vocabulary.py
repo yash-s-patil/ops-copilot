@@ -32,6 +32,10 @@ ALL_REGIONS: CallerRegion = "*"
 CARRIER_SCAN: EventType = "carrier_scan"
 SHIPPED: OrderStatus = "shipped"
 REFUND_FAILED: RefundStatus = "failed"
+# Why a refund failed when nobody learned what the payment service did with it. Such a
+# refund may yet have been paid, so it still counts against its order until a person
+# sends it round again under the same key.
+PAYMENT_OUTCOME_UNKNOWN = "payment_service_unavailable"
 DONE_TICKET_STATUSES: tuple[TicketStatus, ...] = ("resolved", "closed")
 REFUND_SENT: RefundStatus = "sent_to_payments"
 ISSUE_REFUND = "issue_refund"

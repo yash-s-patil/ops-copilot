@@ -4,14 +4,14 @@ from pydantic import JsonValue
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from opscp_common.vocabulary import CARRIER_SCAN, REFUND_FAILED, SHIPPED, EventType
+from opscp_common.vocabulary import CARRIER_SCAN, SHIPPED, EventType
 from opscp_mcp.adapters.postgres.session import Database
-from opscp_mcp.adapters.postgres.tables import order_events, orders, refunds
+from opscp_mcp.adapters.postgres.tables import REFUND_COUNTS, order_events, orders, refunds
 from opscp_mcp.ports.meridian import EventRecord, OrderRecord, Scope
 
 _REFUNDED = (
     select(func.coalesce(func.sum(refunds.c.amount_minor), 0))
-    .where(refunds.c.order_id == orders.c.id, refunds.c.status != REFUND_FAILED)
+    .where(refunds.c.order_id == orders.c.id, REFUND_COUNTS)
     .scalar_subquery()
 )
 _ORDER = select(

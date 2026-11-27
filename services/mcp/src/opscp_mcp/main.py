@@ -28,6 +28,8 @@ from opscp_mcp.rest.approvals import router as approvals_router
 from opscp_mcp.rest.body import SmallBodies
 from opscp_mcp.rest.health import health_router
 from opscp_mcp.rest.origin import NoBrowserOrigins
+from opscp_mcp.rest.refunds import REFUNDS_PATH
+from opscp_mcp.rest.refunds import router as refunds_router
 from opscp_mcp.server import SERVER_NAME, build_server
 from opscp_mcp.settings import SERVICE_NAME, McpSettings
 from opscp_mcp.telemetry.logs import adopt_framework_logs
@@ -72,7 +74,11 @@ def build_app(
         redoc_url=None,
         openapi_url=None,
     )
-    app.add_middleware(SmallBodies, under=APPROVALS_PATH, max_bytes=limits.approval.body_bytes_max)
+    app.add_middleware(
+        SmallBodies,
+        under=(APPROVALS_PATH, REFUNDS_PATH),
+        max_bytes=limits.approval.body_bytes_max,
+    )
     app.add_middleware(NoBrowserOrigins)
     app.add_exception_handler(NotSignedInError, _challenge(sign_in))
     app.add_exception_handler(StarletteHTTPException, unreadable)  # pyright: ignore[reportArgumentType] -- the handler takes the narrower error
@@ -80,6 +86,7 @@ def build_app(
     app.include_router(health_router(engine, database_timeout_s=limits.timeout.postgres_s))
     app.state.access = Access(sign_in, limits)
     app.include_router(approvals_router)
+    app.include_router(refunds_router)
     app.mount("/", mcp_app)
     return app
 

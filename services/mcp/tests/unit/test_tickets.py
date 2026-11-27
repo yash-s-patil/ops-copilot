@@ -5,6 +5,7 @@ import pytest
 
 from opscp_common.errors import PermissionDeniedError
 from opscp_common.limits import Limits
+from opscp_common.vocabulary import RefundStatus
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.authz.policy import Role
 from opscp_mcp.ports.meridian import (
@@ -70,7 +71,7 @@ def test_text_is_capped_by_characters_and_by_bytes(
     assert (capped.text, capped.truncated) == (expected, truncated)
 
 
-def _fullest_ticket(text: str) -> TicketRecord:
+def _fullest_ticket(text: str, refund_status: RefundStatus = "failed") -> TicketRecord:
     return TicketRecord(
         id=MAX_ID,
         order_id=MAX_ID,
@@ -92,7 +93,7 @@ def _fullest_ticket(text: str) -> TicketRecord:
         refund_request=None,
         latest_refund=RefundRecord(
             id=MAX_ID,
-            status="sent_to_payments",
+            status=refund_status,
             amount_minor=MAX_ID,
             currency="INR",
             reason_code="lost_in_transit",
@@ -106,8 +107,9 @@ def _fullest_ticket(text: str) -> TicketRecord:
 class _Fullest:
     """Every field as large as it can be, with all text in a three-byte script."""
 
-    def __init__(self) -> None:
+    def __init__(self, refund_status: RefundStatus = "failed") -> None:
         self._text = WORST_CASE_CHARACTER * 5000
+        self._refund_status: RefundStatus = refund_status
 
     async def get(
         self, scope: Scope, ticket_id: int, *, notes: int, now: datetime
@@ -115,7 +117,8 @@ class _Fullest:
         note = NoteRecord(
             author_kind="agent_on_behalf", author_name=self._text, body=self._text, created_at=NOW
         )
-        return TicketWithNotes(ticket=_fullest_ticket(self._text), notes=(note,) * notes)
+        ticket = _fullest_ticket(self._text, self._refund_status)
+        return TicketWithNotes(ticket=ticket, notes=(note,) * notes)
 
     async def page(
         self, scope: Scope, request: TicketPageRequest, *, now: datetime
@@ -133,6 +136,20 @@ async def test_the_largest_ticket_fits_in_one_result(limits: Limits) -> None:
 
     assert len(view.notes) == limits.notes.max
     assert len(view.model_dump_json().encode()) < limits.tool.result_bytes_max
+
+
+@pytest.mark.parametrize(
+    ("refund_status", "shown"),
+    [("failed", True), ("approved", False), ("sent_to_payments", False), ("paid", False)],
+)
+async def test_why_a_payment_failed_is_shown_only_while_the_refund_is_failed(
+    limits: Limits, refund_status: RefundStatus, shown: bool
+) -> None:
+    """A refund sent round again keeps its old reason in the database until payments answers."""
+    view = await TicketService(_Fullest(refund_status), limits, lambda: NOW).get(ARJUN, 1, notes=0)
+
+    assert view.refund is not None
+    assert (view.refund.state, view.refund.failure_reason is not None) == (refund_status, shown)
 
 
 async def test_the_largest_page_of_tickets_fits_in_one_result(limits: Limits) -> None:

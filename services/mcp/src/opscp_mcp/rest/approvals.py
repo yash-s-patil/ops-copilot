@@ -152,7 +152,7 @@ SignedIn = Annotated[Identity, Depends(caller)]
 
 
 @dataclass(frozen=True, slots=True)
-class _Decision:
+class Decision:
     action: AuditAction
     target: str
     arguments: dict[str, JsonValue]
@@ -161,7 +161,7 @@ class _Decision:
 def _entry(
     request: Request,
     identity: Identity,
-    decision: _Decision,
+    decision: Decision,
     started: float,
     failure: BaseException | None = None,
 ) -> AuditEntry:
@@ -183,10 +183,10 @@ def _entry(
     )
 
 
-async def _decided[T](
+async def decided[T](
     request: Request,
     identity: Identity,
-    decision: _Decision,
+    decision: Decision,
     decide: Callable[[EntryNow], Awaitable[Recorded[T]]],
 ) -> T:
     """Takes a decision. Its audit entry is stored with it, or a refusal is recorded after."""
@@ -210,7 +210,7 @@ async def _decided[T](
 
 
 async def _audited[T](
-    request: Request, identity: Identity, decision: _Decision, call: Callable[[], Awaitable[T]]
+    request: Request, identity: Identity, decision: Decision, call: Callable[[], Awaitable[T]]
 ) -> T:
     """Makes a call that stores nothing itself, and records it whatever came of it."""
     started = time.monotonic()
@@ -229,7 +229,7 @@ async def _audited[T](
 async def _refused(
     request: Request,
     identity: Identity,
-    decision: _Decision,
+    decision: Decision,
     started: float,
     failure: BaseException | None,
 ) -> NoReturn:
@@ -278,12 +278,12 @@ async def one(request: Request, identity: SignedIn, action_id: UUID) -> ActionVi
 @router.post("/{action_id}/approve")
 async def approve(request: Request, identity: SignedIn, action_id: UUID, body: Approve) -> Approved:
     approvals = services_of(request).approvals
-    decision = _Decision(
+    decision = Decision(
         "approve",
         "POST /approvals/{id}/approve",
         {"action_id": str(action_id), "args_hash": body.args_hash},
     )
-    return await _decided(
+    return await decided(
         request,
         identity,
         decision,
@@ -294,12 +294,12 @@ async def approve(request: Request, identity: SignedIn, action_id: UUID, body: A
 @router.post("/{action_id}/reject")
 async def reject(request: Request, identity: SignedIn, action_id: UUID, body: Reject) -> ActionView:
     approvals = services_of(request).approvals
-    decision = _Decision(
+    decision = Decision(
         "reject",
         "POST /approvals/{id}/reject",
         {"action_id": str(action_id), "reason": body.reason},
     )
-    return await _decided(
+    return await decided(
         request,
         identity,
         decision,
@@ -310,7 +310,7 @@ async def reject(request: Request, identity: SignedIn, action_id: UUID, body: Re
 @router.post("/{action_id}/token")
 async def token(request: Request, identity: SignedIn, action_id: UUID) -> ApprovalToken:
     approvals = services_of(request).approvals
-    decision = _Decision("call", "POST /approvals/{id}/token", {"action_id": str(action_id)})
+    decision = Decision("call", "POST /approvals/{id}/token", {"action_id": str(action_id)})
     return await _audited(request, identity, decision, lambda: approvals.token(identity, action_id))
 
 

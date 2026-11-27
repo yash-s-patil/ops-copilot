@@ -18,7 +18,7 @@ _WITH_BODY = frozenset({"POST", "PUT", "PATCH"})
 
 
 class SmallBodies:
-    def __init__(self, app: ASGIApp, *, under: str, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, *, under: tuple[str, ...], max_bytes: int) -> None:
         self._app = app
         self._under = under
         self._max_bytes = max_bytes
