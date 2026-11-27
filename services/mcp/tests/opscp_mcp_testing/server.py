@@ -23,14 +23,16 @@ from opscp_mcp.services.customers import CustomerService
 from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.policies import PolicyService
+from opscp_mcp.services.proposals import ProposalService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
+from opscp_mcp_testing.fakes.actions import FakePendingActions, FakeRefundCases
 from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
 from opscp_mcp_testing.fakes.knowledge import FakePolicies
 from opscp_mcp_testing.fakes.meridian import FakeCustomers, FakeOrders, FakeTickets
 from opscp_mcp_testing.paths import POLICIES_DIR, RUNBOOKS_DIR
-from opscp_mcp_testing.world import NOW, WORLD
+from opscp_mcp_testing.world import NOW, WORLD, World
 
 UNLIMITED = 1_000_000
 
@@ -52,18 +54,22 @@ class SignedOut:
         raise PermissionDeniedError("Sign in to use this server.")
 
 
-def fake_services(identity: Identity, limits: Limits) -> Services:
+def fake_services(identity: Identity, limits: Limits, world: World = WORLD) -> Services:
     runbooks = InMemoryRunbooks.from_directory(RUNBOOKS_DIR)
     numbers = itertools.count(1)
+    actions = FakePendingActions()
     return Services(
         identities=Caller(identity),
         rates=FakeRateLimiter(
             per_minute=limits.rate.calls_per_minute, burst=UNLIMITED, clock=lambda: NOW
         ),
         audit=FakeAuditTrail(),
-        customers=CustomerService(FakeCustomers(WORLD)),
-        orders=OrderService(FakeOrders(WORLD), limits, lambda: NOW),
-        tickets=TicketService(FakeTickets(WORLD), limits, lambda: NOW),
+        customers=CustomerService(FakeCustomers(world)),
+        orders=OrderService(FakeOrders(world), limits, lambda: NOW),
+        tickets=TicketService(FakeTickets(world), limits, lambda: NOW),
+        proposals=ProposalService(
+            FakeTickets(world), FakeRefundCases(world, actions), actions, limits, lambda: NOW
+        ),
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(FakePolicies.from_directory(POLICIES_DIR), limits),
         references=ReferenceService(runbooks, limits),

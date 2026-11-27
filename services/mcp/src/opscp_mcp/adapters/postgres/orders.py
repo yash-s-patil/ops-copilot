@@ -46,7 +46,7 @@ class PostgresOrders:
             shipped = row["status"] == SHIPPED
             return OrderRecord(
                 **row,
-                last_new_scan_at=await _last_new_scan_at(connection, order_id) if shipped else None,
+                last_new_scan_at=await last_new_scan_at(connection, order_id) if shipped else None,
                 recent_events=await _recent_events(connection, order_id, recent_events),
                 event_counts=await _event_counts(connection, order_id) if recent_events else {},
             )
@@ -89,7 +89,7 @@ async def _event_counts(connection: AsyncConnection, order_id: int) -> dict[Even
     return {row.event_type: row.total for row in rows}
 
 
-async def _last_new_scan_at(connection: AsyncConnection, order_id: int) -> datetime | None:
+async def last_new_scan_at(connection: AsyncConnection, order_id: int) -> datetime | None:
     scans = (
         select(
             order_events.c.occurred_at,

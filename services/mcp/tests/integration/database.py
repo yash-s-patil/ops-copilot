@@ -66,12 +66,12 @@ FIXTURE_ROWS = (
     INSERT INTO control.pending_actions
         (id, tool, args, args_hash, requester_oid, requester_name, requester_region,
          approval_kind, status, approver_oid, approver_name, decided_at, executed_at,
-         idempotency_key, ticket_id, expires_at)
+         idempotency_key, ticket_id, order_id, expires_at)
     VALUES
         (:pending_action, 'issue_refund', '{}'::jsonb, 'hash',
          :west_engineer, 'West Engineer', 'west', 'self', 'executed',
          :west_engineer, 'West Engineer', now(), now(),
-         'fixture-key', 201, now() + interval '1 hour')
+         'fixture-key', 201, 101, now() + interval '1 hour')
     """,
     """
     INSERT INTO core.refunds

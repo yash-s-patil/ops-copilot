@@ -7,7 +7,7 @@ from opscp_common.hashing import JsonValue
 from opscp_mcp.ports.base import Record
 
 type ActorKind = Literal["user", "synthetic", "service"]
-type AuditAction = Literal["call", "deny"]
+type AuditAction = Literal["call", "deny", "propose"]
 type AuditOutcome = Literal["ok", "denied", "error"]
 
 

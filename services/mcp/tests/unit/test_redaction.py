@@ -137,7 +137,6 @@ def test_a_character_the_database_cannot_store_is_replaced() -> None:
     ("value", "kept"),
     [
         ([1, 2], "<list>"),
-        ({"email": "asha.rao@example.in"}, "<dict>"),
         (1.5, "<float>"),
         (b"bytes", "<bytes>"),
     ],
@@ -153,3 +152,32 @@ def test_a_very_long_text_is_handled_quickly() -> None:
 
     assert all(len(text) <= CHARS for text in kept)
     assert time.monotonic() - started < 1
+
+
+def test_an_object_is_recorded_one_level_deep_with_the_same_care() -> None:
+    recommendation = {
+        "amount_minor": 62000,
+        "reason_code": "goodwill_delay",
+        "reason_text": "Customer asha.rao@example.in waited 97 hours",
+        "nested": {"email": "asha.rao@example.in"},
+        "not a name": 1,
+    }
+
+    kept = redacted({"recommendation": recommendation}, ["recommendation"], CHARS)["recommendation"]
+
+    assert isinstance(kept, dict)
+    assert (kept["amount_minor"], kept["reason_code"], kept["nested"]) == (
+        62000,
+        "goodwill_delay",
+        "<dict>",
+    )
+    assert set(kept) == {"amount_minor", "reason_code", "reason_text", "nested"}
+    assert "asha" not in str(kept)
+
+
+@pytest.mark.parametrize(
+    "sent", ["not-a-real-approval", {"jws": "not-a-real-approval"}, ["not-a-real-approval"], 7, ""]
+)
+def test_an_approval_is_never_recorded_whatever_shape_it_was_sent_in(sent: object) -> None:
+    assert _kept({"approval_token": sent}) == {"approval_token": "<credential>"}
+    assert _kept({"approval_token": None}) == {"approval_token": None}

@@ -16,7 +16,7 @@ from opscp_mcp.middleware.rate_limit import RateLimit
 from opscp_mcp.middleware.visibility import Visibility
 from opscp_mcp.prompts import procedures
 from opscp_mcp.resources import reference
-from opscp_mcp.tools import customers, knowledge, orders, tickets
+from opscp_mcp.tools import customers, knowledge, orders, tickets, writes
 from opscp_mcp.tools.runner import SERVICES_KEY
 
 SERVER_NAME = "Meridian Ops Copilot"
@@ -32,7 +32,7 @@ INSTRUCTIONS = (
 def _declared_permissions() -> dict[str, Permission]:
     """What each tool, resource and prompt needs, by name. Names must not collide."""
     declared: dict[str, Permission] = {}
-    for module in (customers, orders, tickets, knowledge, reference, procedures):
+    for module in (customers, orders, tickets, knowledge, writes, reference, procedures):
         if declared.keys() & module.REQUIRES.keys():
             raise ValueError(
                 "Two components share a name, so one would borrow the other's permission"
@@ -61,14 +61,18 @@ def build_server(
         middleware=[
             Envelope(declared.keys() | reference.OPEN_TO_ANY_ROLE),
             RateLimit(limits.timeout.postgres_s, uncounted=reference.OPEN_TO_ANY_ROLE),
-            Audit(text_chars=limits.audit.text_chars, timeout_s=limits.timeout.postgres_s),
+            Audit(
+                text_chars=limits.audit.text_chars,
+                timeout_s=limits.timeout.postgres_s,
+                writes=writes.REQUIRES,
+            ),
             ResultCap(limits.tool.result_bytes_max),
             Visibility(declared, reference.OPEN_TO_ANY_ROLE),
         ],
         mask_error_details=True,
         strict_input_validation=True,
     )
-    for tools in (customers, orders, tickets, knowledge):
+    for tools in (customers, orders, tickets, knowledge, writes):
         tools.register(server, limits)
     reference.register(server)
     procedures.register(server)

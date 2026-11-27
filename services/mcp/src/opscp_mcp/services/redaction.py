@@ -11,12 +11,15 @@ import hashlib
 import re
 import unicodedata
 from collections.abc import Collection, Mapping
+from typing import cast
 
 from opscp_common.hashing import JsonValue
 
 NAMES_KEPT = 16
 NAME_CHARS = 64
 CONTACT_ARGUMENTS = {"email": "email", "phone": "phone"}
+CREDENTIAL_ARGUMENTS = frozenset({"approval_token"})
+CREDENTIAL = "<credential>"
 _HASH_CHARS = 16
 _WINDOW = 4
 _LONGEST_NUMBER_KEPT = 999_999_999
@@ -72,7 +75,11 @@ def redacted_text(text: str, text_chars: int) -> str:
     return "".join(kept)[:text_chars]
 
 
-def _redacted_value(name: str, value: object, text_chars: int) -> JsonValue:
+def _redacted_value(
+    name: str, value: object, text_chars: int, *, nested: bool = False
+) -> JsonValue:
+    if name in CREDENTIAL_ARGUMENTS:
+        return None if value is None else CREDENTIAL
     match value:
         case None | bool():
             return value
@@ -82,8 +89,18 @@ def _redacted_value(name: str, value: object, text_chars: int) -> JsonValue:
             return _hashed(CONTACT_ARGUMENTS[name], _readable(value[: text_chars * _WINDOW]))
         case str():
             return redacted_text(value, text_chars)
+        case dict() if not nested:
+            # A JSON object: its keys are text, its values anything.
+            return _redacted_object(cast("Mapping[object, object]", value), text_chars)
         case _:
             return f"<{type(value).__name__}>"
+
+
+def _redacted_object(value: Mapping[object, object], text_chars: int) -> dict[str, JsonValue]:
+    names = sorted(key for key in value if isinstance(key, str) and is_argument_name(key))
+    return {
+        key: _redacted_value(key, value[key], text_chars, nested=True) for key in names[:NAMES_KEPT]
+    }
 
 
 def redacted(

@@ -30,3 +30,11 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
 - A backend that fails repeatedly is answered for with `BACKEND_UNAVAILABLE` at once, without
   being called, until it recovers. The message of `BACKEND_UNAVAILABLE` no longer names the
   policy store, and a refusal from the store that waiting will not change is now `INTERNAL`.
+- Tools `update_ticket` (needs `tickets.write`) and `issue_refund` (needs `refunds.request`).
+  Called without `approval_token` they record a pending action and return `{status:
+  "approval_required", action_id, args_hash, approval_kind, summary, expires_at}` inside the
+  usual `{data, provenance}`. `status` is `executed`, `rejected`, `expired` or `failed` when a
+  repeated call finds that its action is over. Any `approval_token` is `APPROVAL_INVALID` until
+  approvals are built.
+- `POLICY_VIOLATION` carries `details.rule`, and for a refund `cap_minor` and `requested_minor`.
+- `IDEMPOTENCY_CONFLICT` when an `idempotency_key` is reused with different arguments.

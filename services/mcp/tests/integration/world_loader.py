@@ -38,10 +38,10 @@ _INSERT_NOTE = text(
 _INSERT_PENDING_ACTION = text(
     "INSERT INTO control.pending_actions (id, tool, args, args_hash, requester_oid,"
     " requester_name, requester_region, approval_kind, status, approver_oid, approver_name,"
-    " decided_at, executed_at, idempotency_key, ticket_id, expires_at, created_at)"
+    " decided_at, executed_at, idempotency_key, ticket_id, order_id, expires_at, created_at)"
     " VALUES (:id, :tool, :args, 'hash', :requester_oid, :requester_name, :region,"
     " :approval_kind, :status, :approver_oid, :approver_name, :decided_at, :executed_at,"
-    " :idempotency_key, :ticket_id, :expires_at, :created_at)"
+    " :idempotency_key, :ticket_id, :order_id, :expires_at, :created_at)"
 ).bindparams(bindparam("args", type_=JSONB))
 _INSERT_REFUND = text(
     "INSERT INTO core.refunds (id, order_id, ticket_id, region, amount_minor, reason_code,"
@@ -59,12 +59,19 @@ async def load_world(connection: AsyncConnection, world: World) -> None:
     await connection.execute(_INSERT_EVENT, [asdict(row) for row in world.events])
     await connection.execute(_INSERT_TICKET, [asdict(row) for row in world.tickets])
     await connection.execute(_INSERT_NOTE, [asdict(row) for row in world.notes])
+    order_of_ticket = {ticket.id: ticket.order_id for ticket in world.tickets}
+    order_of_action = {
+        action.id: order_of_ticket[action.ticket_id]
+        for action in world.pending_actions
+        if action.ticket_id is not None
+    } | {refund.pending_action_id: refund.order_id for refund in world.refunds}
     await connection.execute(
         _INSERT_PENDING_ACTION,
         [
             {
                 **asdict(row),
                 "idempotency_key": str(row.id),
+                "order_id": order_of_action.get(row.id),
                 "decided_at": row.created_at if row.approver_oid else None,
                 "executed_at": row.created_at if row.status == "executed" else None,
             }

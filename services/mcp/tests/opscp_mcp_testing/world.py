@@ -141,6 +141,7 @@ NOBODY, NO_ORDER, NO_TICKET = 999999001, 999999101, 999999201
 STUCK_ON_ADDRESS, SOUTH_ORDER, PAYMENT_HELD = 900101, 900102, 900103
 SCANNER_LOOP, MOVING, NEVER_SCANNED, DELIVERED = 900104, 900105, 900106, 900107
 CHITRA_ORDER = 900108
+LOSS_CONFIRMED, CANCELLED_AFTER_PAYMENT, DAMAGED_ON_ARRIVAL = 900109, 900110, 900111
 
 PLAIN, WAITING_ON_CUSTOMER, RESOLVED, SOUTH_PLAIN = 900201, 900202, 900203, 900204
 ESCALATED_BY_PRIYA, AWAITING_SUPERVISOR, SENT_TO_PAYMENTS = 900211, 900212, 900213
@@ -270,6 +271,30 @@ WORLD = World(
             region="west",
             status_changed_at=ago(500),
         ),
+        OrderRow(
+            id=LOSS_CONFIRMED,
+            customer_id=ASHA,
+            status="lost",
+            region="west",
+            status_changed_at=ago(20),
+            amount_minor=890000,
+        ),
+        OrderRow(
+            id=CANCELLED_AFTER_PAYMENT,
+            customer_id=CHITRA,
+            status="cancelled",
+            region="west",
+            status_changed_at=ago(50),
+            amount_minor=240000,
+        ),
+        OrderRow(
+            id=DAMAGED_ON_ARRIVAL,
+            customer_id=CHITRA,
+            status="delivered",
+            region="west",
+            status_changed_at=ago(30),
+            amount_minor=150000,
+        ),
     ),
     events=(
         EventRow(order_id=STUCK_ON_ADDRESS, event_type="payment_released", occurred_at=ago(120)),
@@ -323,6 +348,12 @@ WORLD = World(
             payload={"hub": "BOM-1", "scan": "departed"},
         ),
         EventRow(order_id=NEVER_SCANNED, event_type="carrier_pickup", occurred_at=ago(80)),
+        EventRow(
+            order_id=LOSS_CONFIRMED, event_type="lost_in_transit_confirmed", occurred_at=ago(20)
+        ),
+        EventRow(order_id=CANCELLED_AFTER_PAYMENT, event_type="cancelled", occurred_at=ago(50)),
+        EventRow(order_id=DAMAGED_ON_ARRIVAL, event_type="delivered", occurred_at=ago(30)),
+        EventRow(order_id=DAMAGED_ON_ARRIVAL, event_type="damage_reported", occurred_at=ago(26)),
     ),
     tickets=(
         TicketRow(

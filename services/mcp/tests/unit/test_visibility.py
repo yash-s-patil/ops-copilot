@@ -130,8 +130,8 @@ async def test_every_registered_component_declares_its_permission(limits: Limits
             + [prompt.name for prompt in await priya.list_prompts()]
         )
 
-    assert len(registered) == 12
-    assert sorted(shown) == sorted(registered)
+    assert len(registered) == 14
+    assert sorted([*shown, "issue_refund"]) == sorted(registered)
 
 
 def test_two_components_cannot_share_a_name(

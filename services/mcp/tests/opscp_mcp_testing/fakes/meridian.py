@@ -107,7 +107,7 @@ class FakeOrders:
                 for refund in self._world.refunds
                 if refund.order_id == order_id and refund.status != REFUND_FAILED
             ),
-            last_new_scan_at=_last_new_scan_at(events) if row.status == SHIPPED else None,
+            last_new_scan_at=last_new_scan_at(events) if row.status == SHIPPED else None,
             recent_events=tuple(
                 EventRecord(
                     type=event.event_type, occurred_at=event.occurred_at, payload=event.payload
@@ -118,7 +118,7 @@ class FakeOrders:
         )
 
 
-def _last_new_scan_at(events: list[EventRow]) -> datetime | None:
+def last_new_scan_at(events: list[EventRow]) -> datetime | None:
     scans = [event for event in events if event.event_type == CARRIER_SCAN]
     new = [
         scan.occurred_at

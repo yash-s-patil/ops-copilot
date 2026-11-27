@@ -1239,5 +1239,352 @@
       "type": "object"
     },
     "title": "Read a policy"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Ask to change a ticket: set its status, add a note, or escalate it to L2. Give at least one of status, note or escalate_to. Status may move from open to pending_customer or resolved, from pending_customer to open or resolved, and from resolved to closed. Escalating needs a note, works only on an open ticket in the L1 queue, and may carry a refund recommendation, which is checked against the refund policy. A note is at most 1000 characters. Nothing is changed by this call: it records the request and returns status 'approval_required' with an action_id for a person to approve.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Leave unset. It is supplied after a person has approved the action."
+        },
+        "escalate_to": {
+          "anyOf": [
+            {
+              "const": "L2",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "'L2' to hand the ticket to the L2 queue."
+        },
+        "idempotency_key": {
+          "description": "A new value for each change you intend, repeated unchanged on every retry of that change.",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A note to add to the ticket."
+        },
+        "recommendation": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "amount_minor": {
+                  "type": "integer"
+                },
+                "reason_code": {
+                  "enum": [
+                    "goodwill_delay",
+                    "lost_in_transit",
+                    "cancelled",
+                    "damaged"
+                  ],
+                  "type": "string"
+                },
+                "reason_text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "amount_minor",
+                "reason_code",
+                "reason_text"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With an escalation: the refund you suggest L2 considers."
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "open",
+                "pending_customer",
+                "resolved",
+                "closed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The new status."
+        },
+        "ticket_id": {
+          "description": "The ticket number.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ticket_id",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "name": "update_ticket",
+    "output_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "action_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "approval_kind": {
+              "enum": [
+                "self",
+                "supervisor"
+              ],
+              "type": "string"
+            },
+            "args_hash": {
+              "type": "string"
+            },
+            "expires_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "approval_required",
+                "executed",
+                "rejected",
+                "expired",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "action_id",
+            "args_hash",
+            "approval_kind",
+            "summary",
+            "expires_at"
+          ],
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "description": "Identifies one tool result, so an answer can cite exactly where a fact came from.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "retrieved_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "tool",
+            "retrieved_at"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "data",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "title": "Change a ticket"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "Ask for a refund on an order. The amount is in paise. The reason must be one of goodwill_delay, lost_in_transit, cancelled or damaged, and the order must show the evidence the refund policy asks for; a refusal names the rule and the most that could be asked for. reason_text is at most 300 characters. Nothing is changed by this call: it records the request and returns status 'approval_required' with an action_id for a person to approve.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_minor": {
+          "description": "The amount to refund, in paise.",
+          "type": "integer"
+        },
+        "approval_token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Leave unset. It is supplied after a person has approved the action."
+        },
+        "idempotency_key": {
+          "description": "A new value for each change you intend, repeated unchanged on every retry of that change.",
+          "type": "string"
+        },
+        "order_id": {
+          "description": "The order number.",
+          "type": "integer"
+        },
+        "reason_code": {
+          "description": "Why the refund is due.",
+          "enum": [
+            "goodwill_delay",
+            "lost_in_transit",
+            "cancelled",
+            "damaged"
+          ],
+          "type": "string"
+        },
+        "reason_text": {
+          "description": "The reason in a sentence, with the evidence.",
+          "type": "string"
+        },
+        "ticket_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The ticket about this order, when there is one."
+        }
+      },
+      "required": [
+        "order_id",
+        "amount_minor",
+        "reason_code",
+        "reason_text",
+        "idempotency_key"
+      ],
+      "type": "object"
+    },
+    "name": "issue_refund",
+    "output_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "additionalProperties": false,
+          "properties": {
+            "action_id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "approval_kind": {
+              "enum": [
+                "self",
+                "supervisor"
+              ],
+              "type": "string"
+            },
+            "args_hash": {
+              "type": "string"
+            },
+            "expires_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "approval_required",
+                "executed",
+                "rejected",
+                "expired",
+                "failed"
+              ],
+              "type": "string"
+            },
+            "summary": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "action_id",
+            "args_hash",
+            "approval_kind",
+            "summary",
+            "expires_at"
+          ],
+          "type": "object"
+        },
+        "provenance": {
+          "additionalProperties": false,
+          "description": "Identifies one tool result, so an answer can cite exactly where a fact came from.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "retrieved_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "tool",
+            "retrieved_at"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "data",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "title": "Request a refund"
   }
 ]
