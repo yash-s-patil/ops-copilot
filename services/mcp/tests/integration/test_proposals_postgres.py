@@ -126,13 +126,21 @@ async def test_a_request_is_stored_exactly_as_it_was_made(mcp_app: AsyncEngine) 
         None,
         None,
     )
-    assert stored.model_dump(exclude={"id"}) == {
+    assert stored.model_dump(exclude={"id", "created_at"}) == {
         "tool": "issue_refund",
         "args": new.args,
         "args_hash": new.args_hash,
         "requester_oid": ARJUN.oid,
+        "requester_name": ARJUN.name,
+        "requester_region": "west",
         "approval_kind": "self",
         "status": "proposed",
+        "approver_oid": None,
+        "approver_name": None,
+        "decided_at": None,
+        "decision_reason": None,
+        "policy_snapshot": new.policy_snapshot,
+        "ticket_id": PLAIN,
         "expires_at": new.expires_at,
     }
 

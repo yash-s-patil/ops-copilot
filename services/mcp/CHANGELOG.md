@@ -38,3 +38,7 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
   approvals are built.
 - `POLICY_VIOLATION` carries `details.rule`, and for a refund `cap_minor` and `requested_minor`.
 - `IDEMPOTENCY_CONFLICT` when an `idempotency_key` is reused with different arguments.
+- Routes beside the MCP endpoint, with the same sign-in and the same error body: `GET /approvals`,
+  `GET /approvals/{id}`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` and
+  `POST /approvals/{id}/token`. Errors are answered with an HTTP status (401, 403, 404, 409,
+  422, 429, 503) and the usual `{code, message, retryable, details}`.

@@ -14,6 +14,7 @@ from opscp_common.errors import ErrorCode
 from opscp_common.limits import Limits
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.ports.controls import Allowance
+from opscp_mcp.services.rate import OneAtATime
 from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
 from opscp_mcp_testing.identities import ARJUN, PRIYA
 from opscp_mcp_testing.server import call, connected, error_of, server_for
@@ -215,7 +216,7 @@ async def test_one_persons_flood_is_counted_one_request_at_a_time(limits: Limits
             return Allowance(allowed=True, retry_after_s=0)
 
     rates, whoever = _Watched(), _Whoever()
-    server = server_for(PRIYA, limits, rates=rates, identities=whoever)
+    server = server_for(PRIYA, limits, rates=OneAtATime(rates), identities=whoever)
 
     async with connected(server) as client:
         flood = [call(client, "get_order", order_id=STUCK_ON_ADDRESS) for _ in range(30)]

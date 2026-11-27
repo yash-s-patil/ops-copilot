@@ -8,7 +8,7 @@ import base64
 import secrets
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 STORAGE_ACCOUNT = "opscplocal"
 ON_THIS_MACHINE = "127.0.0.1"
@@ -45,6 +45,18 @@ def _signing_key() -> tuple[str, str]:
     return _one_line(private), _one_line(public)
 
 
+def _approval_key() -> str:
+    """The key approvals are signed with locally, where there is no Key Vault to hold it."""
+    key = ec.generate_private_key(ec.SECP256R1())
+    return _one_line(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
+
+
 def main() -> None:
     password = secrets.token_hex(24)
     storage_key = base64.b64encode(secrets.token_bytes(48)).decode()
@@ -66,6 +78,7 @@ def main() -> None:
         f"DEV_ISSUER={DEV_ISSUER}",
         f"DEV_ISSUER_PUBLIC_KEY={public_key}",
         f"DEV_ISSUER_PRIVATE_KEY={private_key}",
+        f"APPROVAL_SIGNING_KEY={_approval_key()}",
     )
     print("\n".join(lines))  # noqa: T201 -- the output is the file
 
