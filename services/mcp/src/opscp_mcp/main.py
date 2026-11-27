@@ -14,6 +14,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from opscp_common.limits import Limits, load_limits
 from opscp_common.logging import configure_logging
 from opscp_common.settings import LOCAL, DatabaseSettings, Environment, StorageSettings
+from opscp_common.web.body import SmallBodies
+from opscp_common.web.origin import NoBrowserOrigins
 from opscp_mcp.authz.tokens import sign_in_with
 from opscp_mcp.container import OpenServices, Services, production_services
 from opscp_mcp.rest.approvals import (
@@ -25,9 +27,8 @@ from opscp_mcp.rest.approvals import (
     unreadable,
 )
 from opscp_mcp.rest.approvals import router as approvals_router
-from opscp_mcp.rest.body import SmallBodies
 from opscp_mcp.rest.health import health_router
-from opscp_mcp.rest.origin import NoBrowserOrigins
+from opscp_mcp.rest.identity import router as identity_router
 from opscp_mcp.rest.refunds import REFUNDS_PATH
 from opscp_mcp.rest.refunds import router as refunds_router
 from opscp_mcp.server import SERVER_NAME, build_server
@@ -87,6 +88,7 @@ def build_app(
     app.state.access = Access(sign_in, limits)
     app.include_router(approvals_router)
     app.include_router(refunds_router)
+    app.include_router(identity_router)
     app.mount("/", mcp_app)
     return app
 

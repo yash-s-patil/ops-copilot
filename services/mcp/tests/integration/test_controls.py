@@ -8,10 +8,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from opscp_common.redaction import redacted
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail, broken_links
 from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.ports.controls import Allowance, AuditEntry
-from opscp_mcp.services.redaction import redacted
 
 from .database import REPO_ROOT, WEST_ENGINEER, database_settings, guarded
 

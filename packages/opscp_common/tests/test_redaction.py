@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from opscp_mcp.services.redaction import redacted, redacted_text
+from opscp_common.redaction import redacted, redacted_text
 
 CHARS = 200
 EXAMINED = CHARS * 4 + 640

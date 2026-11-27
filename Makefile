@@ -6,6 +6,7 @@ TF_DIR := infra/terraform
 TF_ROOTS := $(TF_DIR)/state-bootstrap
 CHECKOV_VERSION := 3.4.10
 MCP_URL := http://127.0.0.1:8000
+AGENT_URL := http://127.0.0.1:8001
 
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
@@ -24,19 +25,20 @@ install: ## Install every workspace package and tool at the locked versions
 
 env: .env ## Create .env for local development if it does not exist
 
-dev: .env ## Build and start PostgreSQL, Azurite, the MCP server, the payments worker and the payment simulator
+dev: .env ## Build and start PostgreSQL, Azurite, the MCP server, the agent, the payments worker and the local stand-ins
 	@uv run --no-project python infra/local/check_env.py
 	docker compose up --build --detach --wait
 
-token: .env ## Print a local sign-in token for a demo user: make token WHO=priya
+token: .env ## Print a local sign-in token for a demo user: make token WHO=priya (FOR=mcp to call the MCP server directly)
 	@uv run --no-project python infra/local/check_env.py
-	@uv run --env-file .env python infra/local/dev_token.py $(WHO)
+	@uv run --env-file .env python infra/local/dev_token.py $(WHO) --for $(or $(FOR),agent)
 
-smoke: .env ## Check that the local MCP server is up, reaches its database and knows who is calling
+smoke: migrate ## Check that the local MCP server and agent are up and know who is calling
 	@uv run --no-project python infra/local/check_env.py
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/healthz
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/readyz
-	uv run --env-file .env python infra/local/smoke.py $(MCP_URL)
+	curl --fail --silent --show-error --max-time 5 $(AGENT_URL)/healthz
+	uv run --env-file .env python infra/local/smoke.py $(MCP_URL) $(AGENT_URL)
 
 dev-down: ## Stop the local backends (data volumes are kept)
 	docker compose down
@@ -46,8 +48,9 @@ dev-reset: ## Delete the local data volumes and .env, then start again from empt
 	rm -f .env
 	$(MAKE) dev
 
-migrate: .env ## Apply database migrations to the local meridian database
+migrate: .env ## Apply database migrations to the local meridian and copilot databases
 	uv run --env-file $(CURDIR)/.env --directory services/mcp alembic upgrade head
+	uv run --env-file $(CURDIR)/.env --env-file $(CURDIR)/infra/local/copilot.env --directory services/agent alembic upgrade head
 
 seed: migrate ## Replace the local meridian data with the demo data and upload the policies
 	uv run --env-file .env --env-file infra/local/seed.env python -m opscp_seed
@@ -71,6 +74,8 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --directory $(TF_DIR) --framework terraform --quiet --compact
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/mcp/Dockerfile --framework dockerfile --quiet --compact
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/payments/Dockerfile --framework dockerfile --quiet --compact
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/agent/Dockerfile --framework dockerfile --quiet --compact
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --file infra/local/issuer/Dockerfile --framework dockerfile --quiet --compact
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .

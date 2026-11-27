@@ -60,6 +60,11 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
 - `get_ticket` and `list_tickets` give `refund.failure_reason` only while the refund's state is
   `failed`. The reason is a code: the provider's own (`provider_declined`), or
   `payment_service_unavailable`.
+- Route `GET /identity` beside the MCP endpoint, with the same sign-in: `{oid, name, roles,
+  region, permissions}` for the caller. The agent shows a person their permissions from this,
+  so the role table stays in this server.
+- A request may name its run in the header `X-Opscp-Run-Id`. A value that is a UUID is written
+  to the audit row's `run_id`; any other is ignored. It is the caller's word and grants nothing.
 - `get_order` and the refund policy count a refund that failed with
   `payment_service_unavailable` in `refunded_minor`, because its payment may yet have been
   made. A refund the provider declined is still left out.

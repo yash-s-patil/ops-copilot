@@ -204,6 +204,42 @@ class HealthLimits(_Group):
     cache_s: PositiveInt
 
 
+class ModelLimits(_Group):
+    timeout_s: PositiveInt
+    retries: PositiveInt
+    backoff_base_ms: PositiveInt
+    retry_after_max_s: PositiveInt
+    chars_per_token: PositiveInt
+
+
+class McpClientLimits(_Group):
+    timeout_s: PositiveInt
+    token_timeout_s: PositiveInt
+    tokens_kept: PositiveInt
+
+
+class RunsLimits(_Group):
+    list_max: PositiveInt
+    lease_s: PositiveInt
+    heartbeat_s: PositiveInt
+    rejections_max: PositiveInt
+    invalid_calls_max: PositiveInt
+    graph_steps_max: PositiveInt
+    route_timeout_s: PositiveInt
+    body_bytes_max: PositiveInt
+
+    @model_validator(mode="after")
+    def _a_lease_outlives_its_heartbeat(self) -> Self:
+        _require_ordered(self.heartbeat_s * 2, self.lease_s, "twice heartbeat_s", "lease_s")
+        return self
+
+
+class StreamLimits(_Group):
+    poll_ms: PositiveInt
+    keepalive_s: PositiveInt
+    page: PositiveInt
+
+
 class RetentionLimits(_Group):
     copilot_days: PositiveInt
 
@@ -279,6 +315,10 @@ class Limits(_Group):
     budget: BudgetLimits
     token: TokenLimits
     health: HealthLimits
+    model: ModelLimits
+    mcp_client: McpClientLimits
+    runs: RunsLimits
+    stream: StreamLimits
     retention: RetentionLimits
     inbox: InboxLimits
     ui: UiLimits

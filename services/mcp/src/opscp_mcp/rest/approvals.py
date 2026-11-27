@@ -29,6 +29,7 @@ from opscp_common.errors import (
 )
 from opscp_common.hashing import JsonValue
 from opscp_common.limits import Limits
+from opscp_common.redaction import redacted
 from opscp_mcp.authz.identity import Identity, identity_from_claims
 from opscp_mcp.container import Services
 from opscp_mcp.middleware.envelope import defect
@@ -42,7 +43,7 @@ from opscp_mcp.services.approvals import (
     Recorded,
 )
 from opscp_mcp.services.rate import count_request
-from opscp_mcp.services.redaction import redacted
+from opscp_mcp.services.runs import run_named_in
 
 _LOG = structlog.get_logger(__name__)
 _BEARER = "bearer "
@@ -169,6 +170,7 @@ def _entry(
     code = None if failure is None else _code_of(failure)
     denied = code == ErrorCode.PERMISSION_DENIED.value
     return AuditEntry(
+        run_id=run_named_in(request.headers),
         actor_oid=identity.oid,
         actor_roles=tuple(sorted(identity.roles)),
         actor_kind="user",

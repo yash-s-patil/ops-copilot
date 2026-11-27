@@ -1,0 +1,17 @@
+"""The steps of the graph, by name."""
+
+PREPARE = "prepare"
+REASON = "reason"
+GATE = "gate"
+TOOLS = "tools"
+PROPOSE = "propose"
+AWAIT_APPROVAL = "await_approval"
+EXECUTE = "execute"
+REPLY = "reply"
+STOP = "stop"
+
+BUDGET = "budget"
+GUARDRAIL = "guardrail"
+REJECTED = "rejected"
+NOT_APPROVED = "not_approved"
+INVALID_CALLS = "invalid_calls"

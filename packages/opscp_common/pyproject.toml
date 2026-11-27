@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+web = [
+    "starlette>=0.50",
+]
 blob = [
     "azure-identity>=1.17",
     "azure-storage-blob[aio]>=12.20",

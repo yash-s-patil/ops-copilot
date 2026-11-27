@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["jobs/*", "packages/*", "services/*"]
+members = ["infra/local/issuer", "jobs/*", "packages/*", "services/*"]
 
 [tool.ruff]
 line-length = 100
@@ -35,7 +35,10 @@ max-args = 6
 
 [tool.ruff.lint.isort]
 known-first-party = [
+    "opscp_agent",
+    "opscp_agent_testing",
     "opscp_common",
+    "opscp_dev_issuer",
     "opscp_mcp",
     "opscp_mcp_testing",
     "opscp_payments",
@@ -49,15 +52,15 @@ ban-relative-imports = "all"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["jobs", "packages", "services"]
+include = ["infra/local/issuer", "jobs", "packages", "services"]
 exclude = ["**/.venv", "**/node_modules", "**/__pycache__"]
-extraPaths = ["services/mcp/tests", "services/payments/tests"]
+extraPaths = ["services/agent/tests", "services/mcp/tests", "services/payments/tests"]
 reportMissingTypeStubs = "error"
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest.ini_options]
-testpaths = ["jobs", "packages", "services"]
-pythonpath = ["services/mcp/tests", "services/payments/tests"]
+testpaths = ["infra/local/issuer", "jobs", "packages", "services"]
+pythonpath = ["services/agent/tests", "services/mcp/tests", "services/payments/tests"]
 addopts = [
     "--import-mode=importlib",
     "--strict-markers",
@@ -73,7 +76,14 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-source_pkgs = ["opscp_common", "opscp_mcp", "opscp_payments", "opscp_seed"]
+source_pkgs = [
+    "opscp_agent",
+    "opscp_common",
+    "opscp_dev_issuer",
+    "opscp_mcp",
+    "opscp_payments",
+    "opscp_seed",
+]
 
 [tool.coverage.report]
 show_missing = true

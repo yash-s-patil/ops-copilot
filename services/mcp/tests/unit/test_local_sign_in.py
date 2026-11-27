@@ -4,6 +4,7 @@ import runpy
 from typing import Any
 
 import pytest
+import yaml
 from pydantic import AnyHttpUrl, ValidationError
 
 from opscp_mcp.authz.identity import identity_from_claims
@@ -70,16 +71,28 @@ def test_the_command_knows_exactly_the_five_demo_users(token_command: dict[str, 
     assert sorted(token_command["DEMO_USERS"]) == sorted(PEOPLE)
 
 
-def test_the_private_key_is_never_given_to_the_server() -> None:
-    compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
-    image = (REPO_ROOT / "services" / "mcp" / "Dockerfile").read_text(encoding="utf-8")
-    ignored = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
+def test_the_key_that_signs_people_in_is_given_to_the_local_issuer_and_nothing_else() -> None:
+    compose = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    ignored = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    given = {
+        name: str(service.get("environment", {})) for name, service in compose["services"].items()
+    }
 
-    assert "DEV_ISSUER_PUBLIC_KEY" in compose
-    assert "${DEV_ISSUER_PRIVATE_KEY" not in compose
-    assert "PRIVATE_KEY" not in compose.split("  payments-sim:")[0] + image
-    assert "env_file" not in compose
-    assert "!infra" not in ignored
+    holders = [
+        name for name, environment in given.items() if "${DEV_ISSUER_PRIVATE_KEY" in environment
+    ]
+    assert holders == ["dev-issuer"]
+    for name in ("mcp", "agent", "payments-sim", "postgres", "azurite"):
+        assert "PRIVATE_KEY" not in given[name]
+    assert "${DEV_ISSUER_PUBLIC_KEY" in given["mcp"]
+    assert "${DEV_ISSUER_PUBLIC_KEY" in given["agent"]
+    assert all("env_file" not in service for service in compose["services"].values())
+    for image in ("services/mcp", "services/agent", "services/payments", "infra/local/issuer"):
+        assert "PRIVATE_KEY" not in (REPO_ROOT / image / "Dockerfile").read_text(encoding="utf-8")
+    assert [line for line in ignored if line.startswith("!infra")] == [
+        "!infra/local/issuer/pyproject.toml",
+        "!infra/local/issuer/src/**",
+    ]
 
 
 def test_the_demo_users_are_the_engineers_the_seed_assigns_tickets_to(
