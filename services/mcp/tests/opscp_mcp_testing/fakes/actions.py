@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from opscp_common.hashing import JsonValue
 from opscp_common.vocabulary import ISSUE_REFUND, REFUND_FAILED, REFUND_UNSETTLED, SHIPPED
 from opscp_mcp.ports.actions import (
     ActionRecord,
@@ -19,7 +20,7 @@ from opscp_mcp.ports.controls import AuditEntry, AuditTrail
 from opscp_mcp.ports.meridian import Scope
 from opscp_mcp_testing.fakes.controls import FakeAuditTrail
 from opscp_mcp_testing.fakes.meridian import last_new_scan_at
-from opscp_mcp_testing.world import EventRow, World
+from opscp_mcp_testing.world import EventRow, RefundRow, World
 
 _LIVE = ("proposed", "approved")
 
@@ -35,6 +36,7 @@ class StoredAction:
     approver_name: str | None = None
     decided_at: datetime | None = None
     reason: str | None = None
+    result: dict[str, JsonValue] | None = None
 
 
 class FakePendingActions:
@@ -144,15 +146,20 @@ def _record(action: StoredAction) -> ActionRecord:
         decision_reason=action.reason,
         policy_snapshot=action.new.policy_snapshot,
         ticket_id=action.new.ticket_id,
+        result=action.result,
         expires_at=action.expires_at,
         created_at=action.created_at,
     )
 
 
 class FakeRefundCases:
-    def __init__(self, world: World, actions: FakePendingActions) -> None:
+    def __init__(
+        self, world: World, actions: FakePendingActions, written: list[RefundRow] | None = None
+    ) -> None:
+        """`written` holds refunds made since the world was built, by a fake execution."""
         self._world = world
         self._actions = actions
+        self._written = [] if written is None else written
 
     async def for_order(self, scope: Scope, order_id: int, *, now: datetime) -> RefundCase | None:
         order = next((row for row in self._world.orders if row.id == order_id), None)
@@ -164,7 +171,7 @@ class FakeRefundCases:
         )
         refunds = [
             refund
-            for refund in self._world.refunds
+            for refund in (*self._world.refunds, *self._written)
             if refund.order_id == order_id and refund.status != REFUND_FAILED
         ]
         customer = next(row for row in self._world.customers if row.id == order.customer_id)
@@ -203,7 +210,7 @@ class FakeRefundCases:
     async def unfinished_on_ticket(self, scope: Scope, ticket_id: int, *, now: datetime) -> bool:
         unsettled = any(
             refund.ticket_id == ticket_id and refund.status in REFUND_UNSETTLED
-            for refund in self._world.refunds
+            for refund in (*self._world.refunds, *self._written)
         )
         waiting = any(
             action.ticket_id == ticket_id

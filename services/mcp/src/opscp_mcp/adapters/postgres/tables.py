@@ -109,6 +109,7 @@ pending_actions = Table(
     Column("idempotency_key", Text),
     Column("ticket_id", BigInteger),
     Column("order_id", BigInteger),
+    Column("result", JSONB),
     Column("expires_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True)),
 )

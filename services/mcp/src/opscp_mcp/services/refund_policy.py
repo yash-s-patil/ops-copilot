@@ -11,10 +11,12 @@ from typing import NoReturn
 from opscp_common.errors import PolicyViolationError
 from opscp_common.hashing import JsonValue
 from opscp_common.limits import ApprovalLimits, GoodwillLimits
-from opscp_common.vocabulary import GOODWILL_DELAY, RefundReason
+from opscp_common.vocabulary import GOODWILL_DELAY, RefundReason, TicketStatus
 from opscp_mcp.ports.actions import ApprovalKind, RefundCase
 
 _HOUR = timedelta(hours=1)
+_REASONS: tuple[RefundReason, ...] = ("goodwill_delay", "lost_in_transit", "cancelled", "damaged")
+_STATUSES: tuple[TicketStatus, ...] = ("open", "pending_customer", "resolved", "closed")
 _PERCENT = 100
 
 
@@ -132,6 +134,24 @@ def assess(
         "delay_hours": delay,
         "cap_minor": cap,
     }
+
+
+def reason_of(stored: object) -> RefundReason:
+    """A stored reason code as one of the four, or a refusal: stored JSON is not typed."""
+    for reason in _REASONS:
+        if stored == reason:
+            return reason
+    raise PolicyViolationError("That is not a reason a refund can be given for.", rule="reason")
+
+
+def status_of(stored: object) -> TicketStatus | None:
+    """A stored status as one a ticket can have, None when none was asked for, or a refusal."""
+    if stored is None:
+        return None
+    for status in _STATUSES:
+        if stored == status:
+            return status
+    raise PolicyViolationError("That is not a status a ticket can have.", rule="status")
 
 
 def approval_kind(amount_minor: int, case: RefundCase, limits: ApprovalLimits) -> ApprovalKind:

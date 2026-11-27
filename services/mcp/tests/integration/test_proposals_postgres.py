@@ -12,14 +12,18 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from opscp_common.errors import PolicyViolationError
 from opscp_common.hashing import JsonValue, args_hash
 from opscp_common.limits import Limits
+from opscp_mcp.adapters.local_signer import LocalApprovalSigner
 from opscp_mcp.adapters.postgres.actions import PostgresPendingActions, PostgresRefundCases
+from opscp_mcp.adapters.postgres.execution import PostgresExecutions
 from opscp_mcp.adapters.postgres.tickets import PostgresTickets
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.ports.actions import NewAction
+from opscp_mcp.services.execution import ExecutionService
 from opscp_mcp.services.proposals import ProposalService, RefundRequest, TicketUpdate
 from opscp_mcp.services.scope import scope_of
 from opscp_mcp_testing.fakes.actions import FakePendingActions, FakeRefundCases
 from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA, ROHAN
+from opscp_mcp_testing.signin import approval_key_pem
 from opscp_mcp_testing.world import (
     AWAITING_SUPERVISOR,
     LOSS_CONFIRMED,
@@ -63,10 +67,13 @@ async def forget_what_the_tests_proposed(migrator: AsyncEngine) -> None:
 
 def _service(engine: AsyncEngine, limits: Limits) -> ProposalService:
     database = guarded(engine)
+    actions = PostgresPendingActions(database)
+    signer = LocalApprovalSigner(approval_key_pem())
     return ProposalService(
         PostgresTickets(database),
         PostgresRefundCases(database),
-        PostgresPendingActions(database),
+        actions,
+        ExecutionService(actions, PostgresExecutions(database), signer, limits, lambda: NOW),
         limits,
         lambda: NOW,
     )
@@ -141,6 +148,7 @@ async def test_a_request_is_stored_exactly_as_it_was_made(mcp_app: AsyncEngine) 
         "decision_reason": None,
         "policy_snapshot": new.policy_snapshot,
         "ticket_id": PLAIN,
+        "result": None,
         "expires_at": new.expires_at,
     }
 

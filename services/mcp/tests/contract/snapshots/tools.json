@@ -1381,6 +1381,27 @@
               "format": "date-time",
               "type": "string"
             },
+            "result": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
             "status": {
               "enum": [
                 "approval_required",
@@ -1531,6 +1552,27 @@
             "expires_at": {
               "format": "date-time",
               "type": "string"
+            },
+            "result": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
             },
             "status": {
               "enum": [

@@ -18,7 +18,8 @@ from opscp_common.hashing import JsonValue
 NAMES_KEPT = 16
 NAME_CHARS = 64
 CONTACT_ARGUMENTS = {"email": "email", "phone": "phone"}
-CREDENTIAL_ARGUMENTS = frozenset({"approval_token"})
+APPROVAL_ARGUMENT = "approval_token"
+CREDENTIAL_ARGUMENTS = frozenset({APPROVAL_ARGUMENT})
 CREDENTIAL = "<credential>"
 _HASH_CHARS = 16
 _WINDOW = 4

@@ -34,11 +34,21 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
   Called without `approval_token` they record a pending action and return `{status:
   "approval_required", action_id, args_hash, approval_kind, summary, expires_at}` inside the
   usual `{data, provenance}`. `status` is `executed`, `rejected`, `expired` or `failed` when a
-  repeated call finds that its action is over. Any `approval_token` is `APPROVAL_INVALID` until
-  approvals are built.
+  repeated call finds that its action is over.
 - `POLICY_VIOLATION` carries `details.rule`, and for a refund `cap_minor` and `requested_minor`.
 - `IDEMPOTENCY_CONFLICT` when an `idempotency_key` is reused with different arguments.
 - Routes beside the MCP endpoint, with the same sign-in and the same error body: `GET /approvals`,
   `GET /approvals/{id}`, `POST /approvals/{id}/approve`, `POST /approvals/{id}/reject` and
   `POST /approvals/{id}/token`. Errors are answered with an HTTP status (401, 403, 404, 409,
   422, 429, 503) and the usual `{code, message, retryable, details}`.
+- A write tool called again with the same arguments, the same `idempotency_key` and a valid
+  `approval_token` carries the action out, once. The answer has `status: "executed"` and a new
+  field `result`: `{refund_id, status, amount_minor}` for a refund, `{ticket_id, status, queue,
+  version}` for a ticket. `result` is `null` in every other answer. Repeating the call returns
+  the same answer and writes nothing, also when the repeat arrives while the first call is
+  still running.
+- A token that is forged, expired, already used, for other arguments, or for another person or
+  action is `APPROVAL_INVALID`, always with the same message.
+- A write the rules no longer allow when it is carried out is `POLICY_VIOLATION` with
+  `details.rule` (also `ticket_changed`, `needs_supervisor`); its action becomes `failed`.
+  Repeating that call is answered with `status: "failed"`; a new attempt needs a new key.

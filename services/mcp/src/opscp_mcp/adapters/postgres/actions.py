@@ -43,7 +43,7 @@ from opscp_mcp.ports.meridian import Scope
 
 # Requests on one order are stored one at a time: each takes this lock for its transaction.
 _LOCK_NAMESPACE = "refund-request:"
-_ONE_ORDER_AT_A_TIME = text("SELECT pg_advisory_xact_lock(hashtextextended(:order, 0))")
+LOCK_ONE_ORDER = text("SELECT pg_advisory_xact_lock(hashtextextended(:order, 0))")
 _ACTION = select(
     pending_actions.c.id,
     pending_actions.c.tool,
@@ -60,6 +60,7 @@ _ACTION = select(
     pending_actions.c.decision_reason,
     pending_actions.c.policy_snapshot,
     pending_actions.c.ticket_id,
+    pending_actions.c.result,
     pending_actions.c.expires_at,
     pending_actions.c.created_at,
 )
@@ -114,33 +115,45 @@ def _case(order_id: int, now: datetime) -> Executable:
     )
 
 
+def lock_key(order_id: int) -> str:
+    """What a transaction locks to be the only one writing refunds or requests on an order."""
+    return f"{_LOCK_NAMESPACE}{order_id}"
+
+
+async def refund_case(
+    connection: AsyncConnection, order_id: int, now: datetime
+) -> RefundCase | None:
+    """The facts of the order as the connection's scope sees them, or None."""
+    row = (await connection.execute(_case(order_id, now))).mappings().one_or_none()
+    if row is None:
+        return None
+    shipped = row["status"] == SHIPPED
+    scan = await last_new_scan_at(connection, order_id) if shipped else None
+    return RefundCase(**row, last_new_scan_at=scan)
+
+
+async def refund_unfinished_on(connection: AsyncConnection, ticket_id: int, now: datetime) -> bool:
+    """Whether a refund on the ticket is on its way to being paid, or waits for a decision."""
+    unsettled = exists().where(
+        refunds.c.ticket_id == ticket_id, refunds.c.status.in_(REFUND_UNSETTLED)
+    )
+    waiting = exists().where(_live_refund_request(now), pending_actions.c.ticket_id == ticket_id)
+    return bool((await connection.execute(select(or_(unsettled, waiting)))).scalar_one())
+
+
 class PostgresRefundCases:
     def __init__(self, database: Database) -> None:
         self._database = database
 
     async def for_order(self, scope: Scope, order_id: int, *, now: datetime) -> RefundCase | None:
-        async def find(connection: AsyncConnection) -> RefundCase | None:
-            row = (await connection.execute(_case(order_id, now))).mappings().one_or_none()
-            if row is None:
-                return None
-            shipped = row["status"] == SHIPPED
-            scan = await last_new_scan_at(connection, order_id) if shipped else None
-            return RefundCase(**row, last_new_scan_at=scan)
-
-        return await self._database.read(scope, find)
+        return await self._database.read(
+            scope, lambda connection: refund_case(connection, order_id, now)
+        )
 
     async def unfinished_on_ticket(self, scope: Scope, ticket_id: int, *, now: datetime) -> bool:
-        unsettled = exists().where(
-            refunds.c.ticket_id == ticket_id, refunds.c.status.in_(REFUND_UNSETTLED)
+        return await self._database.read(
+            scope, lambda connection: refund_unfinished_on(connection, ticket_id, now)
         )
-        waiting = exists().where(
-            _live_refund_request(now), pending_actions.c.ticket_id == ticket_id
-        )
-
-        async def find(connection: AsyncConnection) -> bool:
-            return bool((await connection.execute(select(or_(unsettled, waiting)))).scalar_one())
-
-        return await self._database.read(scope, find)
 
 
 class PostgresPendingActions:
@@ -173,8 +186,7 @@ class PostgresPendingActions:
 
         async def store(connection: AsyncConnection) -> ActionRecord | None:
             if new.order_id is not None:
-                held = {"order": f"{_LOCK_NAMESPACE}{new.order_id}"}
-                await connection.execute(_ONE_ORDER_AT_A_TIME, held)
+                await connection.execute(LOCK_ONE_ORDER, {"order": lock_key(new.order_id)})
                 earlier = (await connection.execute(mine)).mappings().one_or_none()
                 if earlier is not None:
                     return ActionRecord.model_validate(dict(earlier))

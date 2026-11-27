@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from opscp_mcp.ports.meridian import Scope
 from opscp_mcp.reliability.guard import Failure, Guard
 
-_SET_SCOPE = text(
+SET_SCOPE = text(
     "SELECT set_config('app.user_oid', :user_oid, true), set_config('app.region', :region, true)"
 )
 # Connection exception, insufficient resources, and the server shutting down or starting.
@@ -53,7 +53,7 @@ async def read_as(engine: AsyncEngine, scope: Scope) -> AsyncGenerator[AsyncConn
         )
         async with connection.begin():
             await connection.execute(
-                _SET_SCOPE, {"user_oid": str(scope.user_oid), "region": scope.region}
+                SET_SCOPE, {"user_oid": str(scope.user_oid), "region": scope.region}
             )
             yield connection
 
