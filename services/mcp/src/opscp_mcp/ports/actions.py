@@ -81,6 +81,7 @@ class ActionRecord(Record):
     decision_reason: str | None
     policy_snapshot: dict[str, JsonValue] | None
     ticket_id: int | None
+    result: dict[str, JsonValue] | None
     expires_at: datetime
     created_at: datetime
 

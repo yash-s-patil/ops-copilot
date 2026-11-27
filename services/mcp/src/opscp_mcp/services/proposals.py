@@ -2,16 +2,16 @@
 
 A write tool called without an approval creates a pending action and answers "approval
 required". No business row changes here. A person approves the action, and only then is the
-write carried out, with exactly the arguments recorded now.
+write carried out, with exactly the arguments recorded now: a call that brings an approval
+is validated the same way and handed on to be carried out.
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import UUID
 
 from opscp_common.errors import (
-    ApprovalInvalidError,
     IdempotencyConflictError,
     NotFoundError,
     PolicyViolationError,
@@ -94,6 +94,14 @@ class Proposal(Result):
     approval_kind: ApprovalKind
     summary: str
     expires_at: datetime
+    result: dict[str, int | str] | None = None
+    """What was written, once the action has been carried out."""
+
+
+def written(result: dict[str, JsonValue] | None) -> dict[str, int | str] | None:
+    if result is None:
+        return None
+    return {name: value for name, value in result.items() if isinstance(value, int | str)}
 
 
 def _rupees(amount_minor: int) -> str:
@@ -165,12 +173,14 @@ class ProposalService:
         tickets: Tickets,
         cases: RefundCases,
         actions: PendingActions,
+        approved: "CarriesOut",
         limits: Limits,
         clock: Clock,
     ) -> None:
         self._tickets = tickets
         self._cases = cases
         self._actions = actions
+        self._approved = approved
         self._limits = limits
         self._clock = clock
 
@@ -183,7 +193,6 @@ class ProposalService:
         approval_token: str | None = None,
     ) -> Proposal:
         identity.require(Permission.REFUNDS_REQUEST)
-        _no_approval_yet(approval_token)
         refund = self._limits.refund
         args: dict[str, JsonValue] = {
             "order_id": _id(request.order_id, "order_id"),
@@ -195,6 +204,14 @@ class ProposalService:
         }
         if request.ticket_id is not None:
             args["ticket_id"] = _id(request.ticket_id, "ticket_id")
+        if approval_token is not None:
+            return await self._approved.carry_out(
+                identity,
+                ISSUE_REFUND,
+                args,
+                idempotency_key=_key(idempotency_key),
+                approval_token=approval_token,
+            )
         earlier = await self._earlier(identity, ISSUE_REFUND, _key(idempotency_key), args)
         if earlier is not None:
             return earlier
@@ -224,8 +241,15 @@ class ProposalService:
         approval_token: str | None = None,
     ) -> Proposal:
         identity.require(Permission.TICKETS_WRITE)
-        _no_approval_yet(approval_token)
         args = self._update_args(update)
+        if approval_token is not None:
+            return await self._approved.carry_out(
+                identity,
+                UPDATE_TICKET,
+                args,
+                idempotency_key=_key(idempotency_key),
+                approval_token=approval_token,
+            )
         earlier = await self._earlier(identity, UPDATE_TICKET, _key(idempotency_key), args)
         if earlier is not None:
             return earlier
@@ -359,6 +383,7 @@ class ProposalService:
             approval_kind=action.approval_kind,
             summary=summary_of(action.tool, action.args),
             expires_at=action.expires_at,
+            result=written(action.result) if action.status == "executed" else None,
         )
 
 
@@ -371,9 +396,18 @@ class _Asked:
     order_id: int | None
 
 
-def _no_approval_yet(approval_token: str | None) -> None:
-    if approval_token is not None:
-        raise ApprovalInvalidError("This approval cannot be used.")
+class CarriesOut(Protocol):
+    """What a call that brings an approval is handed to."""
+
+    async def carry_out(
+        self,
+        identity: Identity,
+        tool: WriteTool,
+        args: dict[str, JsonValue],
+        *,
+        idempotency_key: str,
+        approval_token: str,
+    ) -> Proposal: ...
 
 
 def _check_move(ticket: TicketRecord, update: TicketUpdate) -> None:

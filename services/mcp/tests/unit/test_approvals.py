@@ -22,13 +22,10 @@ from opscp_mcp.authz.tokens import TokenIdentities
 from opscp_mcp.container import Services
 from opscp_mcp.main import build_app
 from opscp_mcp.ports.signing import ApprovalSigner
-from opscp_mcp.services.approvals import ApprovalService
-from opscp_mcp.services.proposals import ProposalService, RefundRequest, TicketUpdate
-from opscp_mcp_testing.fakes.actions import FakePendingActions, FakeRefundCases
+from opscp_mcp.services.proposals import RefundRequest, TicketUpdate
 from opscp_mcp_testing.fakes.controls import FakeAuditTrail, FakeRateLimiter
-from opscp_mcp_testing.fakes.meridian import FakeTickets
 from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA, ROHAN, SAM
-from opscp_mcp_testing.server import fake_services
+from opscp_mcp_testing.server import fake_services, fake_writes
 from opscp_mcp_testing.signin import approval_key_pem, bearer, dev_sign_in, token_for
 from opscp_mcp_testing.world import LOSS_CONFIRMED, NEVER_SCANNED, NOW, PLAIN, WORLD
 
@@ -60,8 +57,9 @@ class _Office:
         self.limits = limits
         self.now = NOW
         self.audit = FakeAuditTrail()
-        self.actions = FakePendingActions(self.audit)
         self.signer = signer or LocalApprovalSigner(approval_key_pem())
+        self.writes = fake_writes(WORLD, limits, self.audit, lambda: self.now, self.signer)
+        self.actions = self.writes.actions
         self.rates: Any = None
         self.http: TestClient
 
@@ -72,14 +70,8 @@ class _Office:
             identities=TokenIdentities(),
             audit=self.audit,
             rates=self.rates or base.rates,
-            proposals=ProposalService(
-                FakeTickets(WORLD),
-                FakeRefundCases(WORLD, self.actions),
-                self.actions,
-                self.limits,
-                lambda: self.now,
-            ),
-            approvals=ApprovalService(self.actions, self.signer, self.limits, lambda: self.now),
+            proposals=self.writes.proposals,
+            approvals=self.writes.approvals,
         )
 
     async def asked(self, identity: Identity, request: RefundRequest = SMALL) -> dict[str, str]:
@@ -562,30 +554,19 @@ async def test_a_defect_is_answered_inside_the_application_so_the_web_server_log
 
 
 async def test_an_approval_and_its_audit_entry_are_stored_together_or_not_at_all(
-    limits: Limits,
+    office: _Office,
 ) -> None:
-    class _Down:
-        async def record(self, entry: object) -> int:
-            raise ConnectionError("audit database down")
+    action = await office.asked(ARJUN)
+    office.audit.down = True
 
-    office = _Office(limits)
-    office.actions = FakePendingActions(_Down())
-    for opened in _opened(office):
-        action = await opened.asked(ARJUN)
+    with structlog.testing.capture_logs() as logs:
+        response = office.approve(ARJUN, action)
 
-        with structlog.testing.capture_logs() as logs:
-            response = opened.approve(ARJUN, action)
-
-        assert _code(response) == (500, "INTERNAL")
-        assert opened.status_of(action) == "proposed"
-        assert "approval" not in response.text
-        assert [line["event"] for line in logs] == ["audit", "request_failed"]
-        (failure,) = opened.audit.entries
-        assert (failure.action, failure.outcome, failure.error_code) == (
-            "approve",
-            "error",
-            "INTERNAL",
-        )
+    assert _code(response) == (500, "INTERNAL")
+    assert office.status_of(action) == "proposed"
+    assert "approval" not in response.text
+    assert [line["event"] for line in logs] == ["audit_unwritten", "request_failed"]
+    assert office.audit.entries == []
 
 
 async def test_a_token_never_outlives_the_approval_it_carries(office: _Office) -> None:

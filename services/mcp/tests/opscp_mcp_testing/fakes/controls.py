@@ -14,10 +14,13 @@ _SECONDS_PER_MINUTE = 60
 class FakeAuditTrail:
     def __init__(self) -> None:
         self.entries: list[AuditEntry] = []
+        self.down = False
 
     async def record(self, entry: AuditEntry) -> int:
         if "\\u0000" in json.dumps(entry.args_redacted):
             raise ValueError("the database cannot store a NUL character")
+        if self.down:
+            raise ConnectionError("the audit database is down")
         self.entries.append(entry)
         return len(self.entries)
 

@@ -13,12 +13,18 @@ from opscp_common.limits import Limits
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.ports.actions import ActionStatus
-from opscp_mcp.services.proposals import ProposalService, summary_of
-from opscp_mcp_testing.fakes.actions import FakePendingActions, FakeRefundCases
+from opscp_mcp.services.proposals import summary_of
 from opscp_mcp_testing.fakes.controls import FakeAuditTrail
-from opscp_mcp_testing.fakes.meridian import FakeTickets
 from opscp_mcp_testing.identities import ARJUN, KAVITA, PRIYA, ROHAN, SAM
-from opscp_mcp_testing.server import call, connected, data_of, error_of, fake_services, server_with
+from opscp_mcp_testing.server import (
+    call,
+    connected,
+    data_of,
+    error_of,
+    fake_services,
+    fake_writes,
+    server_with,
+)
 from opscp_mcp_testing.world import (
     AWAITING_SUPERVISOR,
     CANCELLED_AFTER_PAYMENT,
@@ -69,19 +75,15 @@ class _Desk:
         self.limits = limits
         self.world = world
         self.now = NOW
-        self.actions = FakePendingActions()
         self.audit = FakeAuditTrail()
+        self.writes = fake_writes(world, limits, self.audit, lambda: self.now)
+        self.actions = self.writes.actions
 
     def _services(self, identity: Identity) -> Services:
-        proposals = ProposalService(
-            FakeTickets(self.world),
-            FakeRefundCases(self.world, self.actions),
-            self.actions,
-            self.limits,
-            lambda: self.now,
-        )
         return replace(
-            fake_services(identity, self.limits, self.world), proposals=proposals, audit=self.audit
+            fake_services(identity, self.limits, self.world),
+            proposals=self.writes.proposals,
+            audit=self.audit,
         )
 
     async def ask(self, identity: Identity, tool: str, key: str = "key-1", **arguments: Any) -> Any:
@@ -111,6 +113,7 @@ async def test_a_refund_request_is_recorded_and_waits_for_approval(desk: _Desk) 
         "approval_kind": "self",
         "summary": f"Refund INR 500.00 on order {NEVER_SCANNED} (goodwill_delay)",
         "expires_at": "2026-11-28T04:45:00Z",
+        "result": None,
     }
     assert stored.new.model_dump() == {
         "tool": "issue_refund",
@@ -620,7 +623,7 @@ async def test_every_request_is_audited_as_a_proposal_and_a_refusal_as_a_denial(
         ("issue_refund", "propose", "ok", None),
         ("issue_refund", "propose", "error", "POLICY_VIOLATION"),
         ("issue_refund", "deny", "denied", "PERMISSION_DENIED"),
-        ("update_ticket", "propose", "error", "APPROVAL_INVALID"),
+        ("update_ticket", "execute", "error", "APPROVAL_INVALID"),
     ]
     first, *_, last = desk.audit.entries
     assert first.args_redacted["idempotency_key"] == "key-1"

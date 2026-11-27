@@ -18,6 +18,7 @@ from opscp_mcp.adapters.memory_runbooks import InMemoryRunbooks
 from opscp_mcp.adapters.postgres.actions import PostgresPendingActions, PostgresRefundCases
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail
 from opscp_mcp.adapters.postgres.customers import PostgresCustomers
+from opscp_mcp.adapters.postgres.execution import PostgresExecutions
 from opscp_mcp.adapters.postgres.orders import PostgresOrders
 from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
 from opscp_mcp.adapters.postgres.session import Database
@@ -30,6 +31,7 @@ from opscp_mcp.reliability.breaker import CircuitBreaker
 from opscp_mcp.reliability.guard import Classify, Guard, GuardLimits
 from opscp_mcp.services.approvals import ApprovalService
 from opscp_mcp.services.customers import CustomerService
+from opscp_mcp.services.execution import ExecutionService
 from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import Clock, OrderService
 from opscp_mcp.services.policies import PolicyService
@@ -149,6 +151,9 @@ def production_services(
                     tickets,
                     PostgresRefundCases(database),
                     actions,
+                    ExecutionService(
+                        actions, PostgresExecutions(database), signer, limits, utc_now
+                    ),
                     limits,
                     utc_now,
                 ),
