@@ -19,6 +19,7 @@ from opscp_mcp.adapters.postgres.actions import PostgresPendingActions, Postgres
 from opscp_mcp.adapters.postgres.audit import PostgresAuditTrail, broken_links
 from opscp_mcp.adapters.postgres.execution import PostgresExecutions
 from opscp_mcp.adapters.postgres.rate_limits import PostgresRateLimiter
+from opscp_mcp.adapters.postgres.refunds import PostgresRefundRetries
 from opscp_mcp.authz.identity import Identity
 from opscp_mcp.container import Services
 from opscp_mcp.main import build_app
@@ -29,6 +30,7 @@ from opscp_mcp.services.health import HealthService
 from opscp_mcp.services.orders import OrderService
 from opscp_mcp.services.policies import PolicyService
 from opscp_mcp.services.proposals import ProposalService
+from opscp_mcp.services.refunds import RefundService
 from opscp_mcp.services.resources import ReferenceService
 from opscp_mcp.services.runbooks import RunbookService
 from opscp_mcp.services.tickets import TicketService
@@ -113,6 +115,7 @@ def _services(
             lambda: NOW,
         ),
         approvals=ApprovalService(actions, signer, limits, lambda: NOW),
+        refunds=RefundService(PostgresRefundRetries(database), limits.approval, lambda: NOW),
         runbooks=RunbookService(runbooks, limits),
         policies=PolicyService(policies, limits),
         references=ReferenceService(runbooks, limits),

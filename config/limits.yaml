@@ -134,3 +134,10 @@ payments:
   http_timeout_s: 5
 sim:
   settle_delay_s: 3
+  refunds_kept: 10000
+  keys_timeout_s: 5
+  keys_refresh_s: 3600
+  keys_renew_min_s: 300
+  keys_retry_s: 10
+  keys_keep_s: 86400
+  clock_skew_s: 60

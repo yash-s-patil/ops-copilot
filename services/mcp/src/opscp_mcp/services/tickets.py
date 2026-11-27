@@ -8,6 +8,7 @@ from pydantic import Field
 from opscp_common.errors import NotFoundError, ValidationFailedError
 from opscp_common.limits import Limits
 from opscp_common.vocabulary import (
+    REFUND_FAILED,
     REQUEST_PROPOSED,
     AuthorKind,
     Priority,
@@ -255,7 +256,8 @@ class TicketService:
         refund = refund_of(ticket)
         if refund is None:
             return None
-        failure = refund.failure_reason
+        # A refund sent round again keeps its old reason until payments answers.
+        failure = refund.failure_reason if refund.state == REFUND_FAILED else None
         return refund.model_copy(
             update={
                 "requested_by_name": self._name(refund.requested_by_name),

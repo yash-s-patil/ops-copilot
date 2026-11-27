@@ -52,3 +52,14 @@ error bodies. Each entry goes with an update to the snapshots in `tests/contract
 - A write the rules no longer allow when it is carried out is `POLICY_VIOLATION` with
   `details.rule` (also `ticket_changed`, `needs_supervisor`); its action becomes `failed`.
   Repeating that call is answered with `status: "failed"`; a new attempt needs a new key.
+- Route `POST /refunds/{id}/retry` beside the MCP endpoint, with the same sign-in and error body.
+  It needs `refunds.request`. It answers `{refund_id, status: "approved"}`, `NOT_FOUND` for a
+  refund the caller cannot see, and `POLICY_VIOLATION` with `details.rule` `refund_not_failed`,
+  `request_waiting`, `exceeds_remaining`, `goodwill_already_given` or `needs_supervisor`. It is
+  not a tool.
+- `get_ticket` and `list_tickets` give `refund.failure_reason` only while the refund's state is
+  `failed`. The reason is a code: the provider's own (`provider_declined`), or
+  `payment_service_unavailable`.
+- `get_order` and the refund policy count a refund that failed with
+  `payment_service_unavailable` in `refunded_minor`, because its payment may yet have been
+  made. A refund the provider declined is still left out.

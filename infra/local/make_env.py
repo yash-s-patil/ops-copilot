@@ -1,4 +1,4 @@
-"""Prints a .env for local development: a new database password, storage key and signing key.
+"""Prints a .env for local development: a new database password, storage key and signing keys.
 
 The signing key stands in for the sign-in service. Tokens signed with it are accepted only
 by a server started with AUTH_MODE=dev, which a server refuses outside ENVIRONMENT=local.
@@ -16,6 +16,8 @@ INSIDE_COMPOSE = "azurite"
 DEV_ISSUER = "http://dev-issuer.localhost/"
 MCP_AUDIENCE = "api://opscp-mcp"
 MCP_PUBLIC_URL = "http://127.0.0.1:8000"
+PAYMENTS_DEV_ISSUER = "http://payments-dev-issuer.localhost/"
+PAYMENTS_AUDIENCE = "api://opscp-payments"
 KEY_BITS = 2048
 PUBLIC_EXPONENT = 65537
 
@@ -61,6 +63,9 @@ def main() -> None:
     password = secrets.token_hex(24)
     storage_key = base64.b64encode(secrets.token_bytes(48)).decode()
     private_key, public_key = _signing_key()
+    # The worker signs its own token locally. It is given a key of its own, so that the key
+    # that signs people in is held by nothing that runs.
+    payments_private_key, payments_public_key = _signing_key()
     lines = (
         "ENVIRONMENT=local",
         f"POSTGRES_PASSWORD={password}",
@@ -79,6 +84,10 @@ def main() -> None:
         f"DEV_ISSUER_PUBLIC_KEY={public_key}",
         f"DEV_ISSUER_PRIVATE_KEY={private_key}",
         f"APPROVAL_SIGNING_KEY={_approval_key()}",
+        f"PAYMENTS_API_AUDIENCE={PAYMENTS_AUDIENCE}",
+        f"PAYMENTS_DEV_ISSUER={PAYMENTS_DEV_ISSUER}",
+        f"PAYMENTS_DEV_PUBLIC_KEY={payments_public_key}",
+        f"PAYMENTS_DEV_PRIVATE_KEY={payments_private_key}",
     )
     print("\n".join(lines))  # noqa: T201 -- the output is the file
 

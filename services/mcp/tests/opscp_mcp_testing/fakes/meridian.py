@@ -8,7 +8,6 @@ from opscp_common.vocabulary import (
     CARRIER_SCAN,
     ISSUE_REFUND,
     OPEN_TICKET_STATUSES,
-    REFUND_FAILED,
     REFUND_SENT,
     REQUEST_APPROVED,
     REQUEST_PROPOSED,
@@ -40,6 +39,7 @@ from opscp_mcp_testing.world import (
     RefundRow,
     TicketRow,
     World,
+    counts_against_its_order,
 )
 
 
@@ -105,7 +105,7 @@ class FakeOrders:
             refunded_minor=sum(
                 refund.amount_minor
                 for refund in self._world.refunds
-                if refund.order_id == order_id and refund.status != REFUND_FAILED
+                if refund.order_id == order_id and counts_against_its_order(refund)
             ),
             last_new_scan_at=last_new_scan_at(events) if row.status == SHIPPED else None,
             recent_events=tuple(

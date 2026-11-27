@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import JsonValue
 
 from opscp_common.vocabulary import (
+    PAYMENT_OUTCOME_UNKNOWN,
     AuthorKind,
     EventType,
     OrderStatus,
@@ -123,6 +124,11 @@ class RefundRow:
     approved_by_name: str = ARJUN.name
     failure_reason: str | None = None
     created_at: datetime = _LAST_MONTH
+
+
+def counts_against_its_order(refund: RefundRow) -> bool:
+    """Unless its payment is known to have failed. An unknown outcome may yet be a payment."""
+    return refund.status != "failed" or refund.failure_reason == PAYMENT_OUTCOME_UNKNOWN
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

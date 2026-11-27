@@ -235,6 +235,19 @@ class PaymentsLimits(_Group):
 
 class SimLimits(_Group):
     settle_delay_s: PositiveInt
+    refunds_kept: PositiveInt
+    keys_timeout_s: PositiveInt
+    keys_refresh_s: PositiveInt
+    keys_renew_min_s: PositiveInt
+    keys_retry_s: PositiveInt
+    keys_keep_s: PositiveInt
+    clock_skew_s: PositiveInt
+
+    @model_validator(mode="after")
+    def _keys_are_kept_longer_than_they_are_fresh(self) -> Self:
+        _require_ordered(self.keys_retry_s, self.keys_refresh_s, "keys_retry_s", "keys_refresh_s")
+        _require_ordered(self.keys_refresh_s, self.keys_keep_s, "keys_refresh_s", "keys_keep_s")
+        return self
 
 
 class Limits(_Group):

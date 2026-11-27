@@ -76,7 +76,8 @@ def test_the_private_key_is_never_given_to_the_server() -> None:
     ignored = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
 
     assert "DEV_ISSUER_PUBLIC_KEY" in compose
-    assert "PRIVATE_KEY" not in compose + image
+    assert "${DEV_ISSUER_PRIVATE_KEY" not in compose
+    assert "PRIVATE_KEY" not in compose.split("  payments-sim:")[0] + image
     assert "env_file" not in compose
     assert "!infra" not in ignored
 

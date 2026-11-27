@@ -16,6 +16,7 @@ from opscp_mcp.adapters.postgres.actions import (
     refund_unfinished_on,
 )
 from opscp_mcp.adapters.postgres.audit import append
+from opscp_mcp.adapters.postgres.outbox import Payment, queue_payment
 from opscp_mcp.adapters.postgres.session import SET_SCOPE, Database
 from opscp_mcp.ports.actions import RefundCase
 from opscp_mcp.ports.execution import (
@@ -33,7 +34,6 @@ from opscp_mcp.ports.execution import (
 )
 
 _NOTE_AUTHOR_KIND = "agent_on_behalf"
-_REFUND_SUBMIT = "refund.submit"
 _TAKE = text(
     """
     UPDATE control.pending_actions
@@ -78,10 +78,6 @@ _ADD_REFUND = text(
          :action_id, :now, :now)
     RETURNING id, currency
     """
-)
-_ADD_OUTBOX = text(
-    "INSERT INTO control.outbox (kind, refund_id, payload, next_attempt_at, created_at, "
-    "updated_at) VALUES (:kind, :refund_id, CAST(:payload AS jsonb), :now, :now, :now)"
 )
 _CHANGE_TICKET = text(
     """
@@ -141,21 +137,13 @@ class _Ledger:
             },
         )
         row = written.mappings().one()
-        payload = {
-            "amount_minor": refund.amount_minor,
-            "currency": row["currency"].strip(),
-            "order_id": refund.order_id,
-            "reason_code": refund.reason_code,
-        }
-        await self._connection.execute(
-            _ADD_OUTBOX,
-            {
-                "kind": _REFUND_SUBMIT,
-                "refund_id": row["id"],
-                "payload": json.dumps(payload),
-                "now": self._now,
-            },
+        payment = Payment(
+            order_id=refund.order_id,
+            amount_minor=refund.amount_minor,
+            currency=row["currency"].strip(),
+            reason_code=refund.reason_code,
         )
+        await queue_payment(self._connection, row["id"], payment, self._now)
         return row["id"]
 
     async def change_ticket(self, change: TicketChange) -> TicketState | None:

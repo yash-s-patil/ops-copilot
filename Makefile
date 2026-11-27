@@ -24,7 +24,7 @@ install: ## Install every workspace package and tool at the locked versions
 
 env: .env ## Create .env for local development if it does not exist
 
-dev: .env ## Build and start PostgreSQL, Azurite and the MCP server, and wait until all are healthy
+dev: .env ## Build and start PostgreSQL, Azurite, the MCP server, the payments worker and the payment simulator
 	@uv run --no-project python infra/local/check_env.py
 	docker compose up --build --detach --wait
 
@@ -70,6 +70,7 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	tflint --chdir=$(TF_DIR) --recursive --config=$(CURDIR)/$(TF_DIR)/.tflint.hcl
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --directory $(TF_DIR) --framework terraform --quiet --compact
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/mcp/Dockerfile --framework dockerfile --quiet --compact
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/payments/Dockerfile --framework dockerfile --quiet --compact
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .

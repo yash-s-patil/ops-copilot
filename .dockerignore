@@ -10,6 +10,8 @@
 !services/mcp/pyproject.toml
 !services/mcp/src/**
 !jobs/seed/pyproject.toml
+!services/payments/pyproject.toml
+!services/payments/src/**
 
 **/__pycache__
 **/*.pyc
