@@ -8,7 +8,7 @@ import asyncio
 import logging
 import signal
 import ssl
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import Protocol
@@ -42,13 +42,23 @@ class Polled(Protocol):
     async def poll(self) -> int: ...
 
 
+def _no_heartbeat() -> None:
+    return None
+
+
 async def run(
-    handoffs: Polled, poll_interval_s: float, stop: asyncio.Event, *, full_batch: int
+    handoffs: Polled,
+    poll_interval_s: float,
+    stop: asyncio.Event,
+    *,
+    full_batch: int,
+    beat: Callable[[], None] = _no_heartbeat,
 ) -> None:
     """Polls until told to stop. A poll that fails is logged and the next one still runs.
 
     After a poll that held a full batch there is probably more waiting, so the next poll
-    follows at once.
+    follows at once. `beat` is called after every poll, failed or not: it says the loop is
+    turning, not that the backends are up.
     """
     while not stop.is_set():
         held = 0
@@ -56,6 +66,7 @@ async def run(
             held = await handoffs.poll()
         except Exception as error:  # noqa: BLE001 -- an outage must not end the worker
             _LOG.error("poll_failed", error=type(error).__name__)
+        beat()
         if held >= full_batch:
             continue
         with suppress(TimeoutError):
@@ -89,6 +100,7 @@ async def _tokens(settings: WorkerSettings) -> AsyncGenerator[AccessTokens]:
 
 async def serve(settings: WorkerSettings, database: DatabaseSettings, limits: Limits) -> None:
     stop = asyncio.Event()
+    heartbeat = settings.heartbeat_file
     loop = asyncio.get_running_loop()
     for wanted in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(wanted, stop.set)
@@ -117,6 +129,7 @@ async def serve(settings: WorkerSettings, database: DatabaseSettings, limits: Li
             limits.payments.poll_interval_s,
             stop,
             full_batch=limits.payments.claim_batch,
+            beat=_no_heartbeat if heartbeat is None else heartbeat.touch,
         )
         _LOG.info("worker_stopped")
 

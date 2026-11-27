@@ -110,6 +110,21 @@ services:
       # A key of the worker's own. The key that signs people in is given to no container.
       DEV_ISSUER_PRIVATE_KEY: ${PAYMENTS_DEV_PRIVATE_KEY:-}
       CHAOS_ENABLED: "true"
+      HEARTBEAT_FILE: /tmp/heartbeat
+    tmpfs:
+      - /tmp
+    healthcheck:
+      # The worker listens on nothing. It touches a file after every poll; alive means the
+      # file is fresh.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/heartbeat') > 30)"
+      interval: 5s
+      timeout: 3s
+      start_period: 15s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy

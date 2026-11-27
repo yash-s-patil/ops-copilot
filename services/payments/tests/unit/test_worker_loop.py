@@ -2,6 +2,7 @@
 
 import asyncio
 import ssl
+from pathlib import Path
 
 import pytest
 import structlog
@@ -67,6 +68,22 @@ async def test_after_a_full_batch_the_next_poll_follows_without_waiting() -> Non
     await asyncio.wait_for(run(handoffs, 3600, stop, full_batch=10), timeout=5)
 
     assert handoffs.polls == 4
+
+
+async def test_the_heartbeat_follows_every_poll_even_one_that_failed(tmp_path: Path) -> None:
+    stop = asyncio.Event()
+    handoffs = _Handoffs(stop, stop_after=3, fail_on=2)
+    heartbeat = tmp_path / "heartbeat"
+    beats: list[int] = []
+
+    def beat() -> None:
+        heartbeat.touch()
+        beats.append(handoffs.polls)
+
+    with structlog.testing.capture_logs():
+        await asyncio.wait_for(run(handoffs, 0.001, stop, full_batch=10, beat=beat), timeout=5)
+
+    assert (beats, heartbeat.exists()) == ([1, 2, 3], True)
 
 
 async def test_a_worker_told_to_stop_before_it_starts_does_nothing() -> None:

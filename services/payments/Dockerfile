@@ -39,8 +39,9 @@ ENV PATH=/app/.venv/bin:$PATH \
 
 USER 10001:10001
 
-# The worker listens on nothing, so there is nothing to probe from outside it. The
-# simulator's probe is set where it is run.
+# Neither program can be probed the same way: the worker listens on nothing and touches
+# HEARTBEAT_FILE after every poll, the simulator answers /healthz. Each probe is set where
+# the program is run.
 HEALTHCHECK NONE
 
 CMD ["python", "-m", "opscp_payments.worker"]

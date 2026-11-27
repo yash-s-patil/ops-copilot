@@ -77,6 +77,9 @@ def test_compose_gives_the_worker_the_payments_key_and_the_simulator_no_private_
     assert "PRIVATE_KEY" not in sim
     assert "DATABASE" not in sim
     assert "ports:" not in worker
+    assert "HEARTBEAT_FILE: /tmp/heartbeat" in worker
+    assert "healthcheck:" in worker
+    assert "healthcheck:" in sim
 
 
 @pytest.mark.parametrize("service", ["payments-worker", "payments-sim"])

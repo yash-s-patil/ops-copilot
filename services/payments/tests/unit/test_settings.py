@@ -96,6 +96,7 @@ def no_settings_from_this_machine(monkeypatch: pytest.MonkeyPatch) -> None:
         "AZURE_CLIENT_ID",
         "TENANT_ID",
         "CHAOS_ENABLED",
+        "HEARTBEAT_FILE",
         "SIM_ALLOW_FORCED_OUTCOME",
         "LIMITS_FILE",
         "LOG_LEVEL",
@@ -111,6 +112,12 @@ def test_locally_the_worker_signs_its_own_token() -> None:
     assert (identity.issuer, identity.audience) == (ISSUER, AUDIENCE)
     assert identity.private_key_pem.get_secret_value() == private_pem()
     assert (settings.json_logs, settings.chaos_enabled) == (False, False)
+
+
+def test_the_heartbeat_file_is_optional() -> None:
+    assert _worker().heartbeat_file is None
+    assert _worker(heartbeat_file="").heartbeat_file is None
+    assert str(_worker(heartbeat_file="/tmp/heartbeat").heartbeat_file) == "/tmp/heartbeat"  # noqa: S108 -- a path in a setting, nothing is written
 
 
 def test_the_private_key_is_not_shown_when_settings_are_printed() -> None:

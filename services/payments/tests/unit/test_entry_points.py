@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import runpy
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -142,17 +143,24 @@ def test_the_worker_does_not_start_with_a_setting_missing(
 
 @pytest.mark.usefixtures("worker_environment")
 async def test_serving_wires_the_worker_runs_it_and_closes_everything(
-    limits: Limits, monkeypatch: pytest.MonkeyPatch
+    limits: Limits, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     ran: list[tuple[Handoffs, float, asyncio.Event]] = []
 
     async def run(
-        handoffs: Handoffs, poll_interval_s: float, stop: asyncio.Event, *, full_batch: int
+        handoffs: Handoffs,
+        poll_interval_s: float,
+        stop: asyncio.Event,
+        *,
+        full_batch: int,
+        beat: Callable[[], None],
     ) -> None:
         ran.append((handoffs, poll_interval_s, stop))
         assert full_batch == limits.payments.claim_batch
+        beat()
 
     monkeypatch.setattr(worker_main, "run", run)
+    monkeypatch.setenv("HEARTBEAT_FILE", str(tmp_path / "heartbeat"))
     settings = WorkerSettings()  # pyright: ignore[reportCallIssue] -- fields come from the environment
     database = DatabaseSettings()  # pyright: ignore[reportCallIssue] -- fields come from the environment
 
@@ -161,6 +169,7 @@ async def test_serving_wires_the_worker_runs_it_and_closes_everything(
     ((handoffs, poll_interval_s, stop),) = ran
     assert isinstance(handoffs, Handoffs)
     assert (poll_interval_s, stop.is_set()) == (limits.payments.poll_interval_s, False)
+    assert (tmp_path / "heartbeat").exists()
 
 
 @pytest.mark.usefixtures("worker_environment")

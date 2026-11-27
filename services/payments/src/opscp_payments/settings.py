@@ -1,6 +1,7 @@
 """Configuration of the two payments programs, read once at start-up."""
 
 import base64
+from pathlib import Path
 from typing import Literal, Self
 from uuid import UUID
 
@@ -102,10 +103,13 @@ class WorkerSettings(_Program):
     payments_api_audience: str | None = None
     dev_issuer_private_key: SecretStr | None = None
     chaos_enabled: bool = False
+    heartbeat_file: Path | None = None
+    """Touched after every poll, so that whatever runs the worker can tell it is alive."""
 
     @field_validator(
         "dev_issuer",
         "payments_scope",
+        "heartbeat_file",
         "azure_client_id",
         "payments_api_audience",
         "dev_issuer_private_key",
