@@ -13,6 +13,8 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 COPY jobs/seed/pyproject.toml jobs/seed/pyproject.toml
+COPY infra/local/issuer/pyproject.toml infra/local/issuer/pyproject.toml
+COPY services/agent/pyproject.toml services/agent/pyproject.toml
 COPY services/payments/pyproject.toml services/payments/pyproject.toml
 COPY packages/opscp_common packages/opscp_common
 COPY services/mcp/pyproject.toml services/mcp/pyproject.toml

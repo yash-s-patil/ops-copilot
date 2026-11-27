@@ -7,8 +7,8 @@ policies and runbooks and proposes a fix. The agent holds no rights over busines
 it acts with the signed-in engineer's delegated identity, and every write needs a human
 approval bound to the exact arguments.
 
-**Status:** under construction. The repository currently holds the project foundation;
-services arrive phase by phase.
+**Status:** under construction. The MCP server, the payments worker and the agent run
+locally with a scripted model. The web application's screens and the Azure deployment follow.
 
 ## Quick start
 
@@ -16,7 +16,7 @@ Requires Docker, [uv](https://docs.astral.sh/uv/), Node 24 with pnpm, Terraform 
 
 ```
 make install  # install the locked toolchain into .venv
-make dev      # build and start local PostgreSQL, Azurite, the MCP server, the payments worker and the payment simulator
+make dev      # build and start local PostgreSQL, Azurite, the MCP server, the agent, the payments worker and the local stand-ins
 make lint     # formatting, lint rules, secret scan on commit, strict type checking
 make migrate  # apply database migrations locally
 make seed     # load the deterministic demo data and upload the policy documents (replaces what is there)
@@ -27,7 +27,7 @@ make test-web # web unit tests
 
 Run `make help` for every target. After pulling a change to the local database or storage setup, run `make dev-reset`.
 
-`make dev` serves the MCP server at `http://127.0.0.1:8000/mcp`, with `/healthz` and `/readyz` beside it. It publishes six read tools, two write tools, four resources and two prompts. Every request needs a bearer token issued for this server; without one the answer is `401` and a pointer to `/.well-known/oauth-protected-resource/mcp`. Locally the sign-in service is replaced by a signing key that `make env` generates into `.env`: `make token WHO=priya` prints a token for one of the five demo users (`priya`, `rohan`, `arjun`, `kavita`, `sam`), and `make smoke` checks that each is shown only their own tools. A server started with that local sign-in refuses to run outside `ENVIRONMENT=local`.
+`make dev` serves the MCP server at `http://127.0.0.1:8000/mcp`, with `/healthz` and `/readyz` beside it. It publishes six read tools, two write tools, four resources and two prompts. Every request needs a bearer token issued for this server; without one the answer is `401` and a pointer to `/.well-known/oauth-protected-resource/mcp`. Locally the sign-in service is replaced by a signing key that `make env` generates into `.env`: `make token WHO=priya` prints a token for one of the five demo users (`priya`, `rohan`, `arjun`, `kavita`, `sam`), and `make smoke` checks that each is shown only their own tools, and that the agent refuses a token meant for the MCP server. A server started with that local sign-in refuses to run outside `ENVIRONMENT=local`.
 
 Every tool call that reaches a tool, whether it succeeds, fails or is refused for lack of permission, appends one row to `audit.audit_log` and writes one log line with the same fields. Arguments are recorded with email addresses and phone numbers replaced by a hash and other text cut to 200 characters. Each row carries the hash of the row before it, so a changed or removed row is detectable: `make verify-audit` checks the chain. If the row cannot be written, the caller gets an error and not the result. Each person may make 60 requests a minute with a burst of 20; the next one is answered `RATE_LIMITED` with the seconds to wait, and is logged but not added to the audit log.
 
@@ -39,7 +39,15 @@ An approved refund is a decision; paying it is a separate step done by a separat
 
 A refund whose payment failed is sent round again with `POST /refunds/{id}/retry` on the MCP server, the route behind the Retry payment button. It needs `refunds.request` and a refund the caller can see; no tool can reach it. In one transaction, with the order's refunds held still, it checks that no other request on the order is waiting, that the refund still fits beside the refunds made since, and that those have not pushed a self-approved refund over the limit a supervisor guards; then it makes it `approved` again, writes a new outbox row and the audit row (`retry`). The amount, the order and the idempotency key do not change, so a retry can neither pay more nor pay twice.
 
-Every call to PostgreSQL or Blob storage goes through a guard for that backend. It allows at most 20 calls in flight, gives each attempt a time limit, and retries a read up to twice, with a random and growing pause, when the failure is a lost connection, a `429` or a `5xx`. A write is never retried. After 5 failures in 30 seconds the guard's circuit breaker opens: calls are refused at once with `BACKEND_UNAVAILABLE` for 20 seconds, then one probe is let through, and its success closes the breaker. The breaker is kept per process, so each replica learns for itself. The resource `meridian://server/health`, readable by anyone with a role, reports each backend as `ok`, `recovering` or `unavailable` and lists the tools that cannot be relied on.
+The agent (`services/agent/`, served at `http://127.0.0.1:8001`) runs investigations and holds no rights over business data. It has its own database, `copilot`, with a role and a password of its own, and no role in `meridian`, the storage account or the search index: tests connect as its role and are refused, and try its password on every other role. Everything it reads or asks to change goes through the MCP server with the signed-in engineer's authority. The web application gives it a token issued for the agent (token A). The MCP server refuses that token, so the agent exchanges it for one issued for the MCP server that names the same person (token B). This is the OAuth on-behalf-of exchange; in Azure the agent proves itself to Entra with its managed identity and holds no secret. Locally `dev-issuer` (`infra/local/issuer/`) stands in for Entra's token endpoint, and is the only program that holds the key that signs people in. Token B is kept in memory until five minutes before it expires. When the MCP server answers `401` the agent exchanges again and repeats that one request once; a second `401` pauses the run as `reauth_required` until its owner signs in again. No token is written to a run's saved state, its events or the log.
+
+A run is a LangGraph graph: `prepare` (list the tools this person may use, load the reference texts and the procedure), `reason` (one model call), `gate`, `tools` (reads, run together), `propose` (write tools called without an approval, which only records the request), `await_approval`, `execute`, `reply`. `await_approval` is an interrupt: the run's state is saved in PostgreSQL by the LangGraph checkpointer, and the run goes on when people have decided, in whichever process its owner next reaches. A process holds a lease on a run while it works and renews it; a run whose process died is picked up from its last saved step when its owner reconnects. Ordinary code, not the model, enforces the limits: 15 tool calls, 8 model turns, 60,000 tokens and 120 seconds a run (a tool result is counted by its length before the model reads it); a canary string in the system prompt that stops the run if it appears in an answer or an argument; a change is dropped unless it cites a tool result that came back whole, and a refund unless its amount follows from the order it cites and the policy; a reply draft with anyone's contact details but the customer's is withheld. Tool results reach the model between marker lines that say they are data, with the markers escaped inside. These lower the odds of a wrong request. What makes a wrong request harmless is the MCP server: its own policy check, and the approval no tool can give.
+
+`POST /api/runs` starts a run and `GET /api/runs/{id}/events` streams it as server-sent events. Each event is stored with a sequence number before it is sent, so a browser that reconnects with `Last-Event-ID` misses nothing. `POST /api/runs/{id}/actions/{action_id}/approve` takes the `args_hash` of the card the person saw and passes their decision to the MCP server; a supervisor decides with `/api/approvals/{id}/approve`, and the requester carries an approved change out with `/api/approvals/{id}/execute`. `GET /api/tickets` and `GET /api/tickets/{id}` give the screens their data by calling the same tools with the caller's token, so masking, row-level security, caps and audit apply as in a run. `POST /api/tickets/{id}/resolve` is the Resolve button: request, approval and execution, each audited. It takes an `Idempotency-Key` header that names the click, so a repeat goes on from where the first attempt stopped. `GET /api/me` reports the caller's permissions as the MCP server grants them; the agent keeps no copy of the role table. Routes under `/api/admin` need the administrator's role and return the admin projection: event types, tools, timings, sizes and codes, with no message, model text, step summary or free-text argument.
+
+Locally the model is replaced by a scripted one (`LLM_PROVIDER=scripted`) that follows the server's `investigate_order` procedure by fixed rules, so the whole flow runs without a model. It says nothing about how a real model behaves and is refused in `prod`. `make token WHO=priya` prints token A; `make token WHO=priya FOR=mcp` prints a token for calling the MCP server directly.
+
+Every call the MCP server makes to PostgreSQL or Blob storage goes through a guard for that backend. It allows at most 20 calls in flight, gives each attempt a time limit, and retries a read up to twice, with a random and growing pause, when the failure is a lost connection, a `429` or a `5xx`. A write is never retried. After 5 failures in 30 seconds the guard's circuit breaker opens: calls are refused at once with `BACKEND_UNAVAILABLE` for 20 seconds, then one probe is let through, and its success closes the breaker. The breaker is kept per process, so each replica learns for itself. The resource `meridian://server/health`, readable by anyone with a role, reports each backend as `ok`, `recovering` or `unavailable` and lists the tools that cannot be relied on.
 
 ## Layout
 
@@ -48,8 +56,10 @@ Every call to PostgreSQL or Blob storage goes through a guard for that backend. 
 | `config/` | `limits.yaml` (every cap, timeout and threshold) and `pricing.yaml` |
 | `packages/opscp_common/` | Code shared by the services |
 | `services/mcp/` | The MCP server: migrations, the tools, resources and prompts, the approval and retry routes, and its image |
+| `services/agent/` | The agent: the graph, the token and MCP clients, guardrails, run events, the HTTP API, migrations for its own database, and its image |
 | `services/payments/` | The payments worker and the payment simulator: one package, one image, two entry points |
 | `jobs/seed/` | Loads the demo data and uploads the policy documents |
+| `infra/local/` | What stands in for Azure on a laptop: the token issuer, the token and smoke scripts, the database roles |
 | `data/` | The runbooks and policy documents the assistant reads |
 | `apps/web/` | The web application (Next.js) |
 | `infra/terraform/state-bootstrap/` | One-off storage account for Terraform state |

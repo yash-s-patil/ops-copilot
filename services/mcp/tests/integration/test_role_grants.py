@@ -176,10 +176,15 @@ async def test_payments_worker_cannot_write_a_note_as_anyone_else(
             await connection.execute(_SYSTEM_NOTE, {"ticket": WEST["ticket"], "kind": kind})
 
 
-async def test_agent_role_cannot_connect_to_the_business_database(migrator: AsyncEngine) -> None:
+async def test_the_password_this_server_holds_does_not_open_the_agent_s_role(
+    migrator: AsyncEngine,
+) -> None:
+    """The agent's role has a password of its own. That the role, signed in with it, is
+    refused by this database is tested with the agent, which is the one that holds it.
+    """
     engine = create_async_engine(database_settings("agent_app").url())
     try:
-        with pytest.raises(DBAPIError, match="permission denied for database"):
+        with pytest.raises(DBAPIError, match="password authentication failed"):
             async with engine.connect():
                 pass
     finally:

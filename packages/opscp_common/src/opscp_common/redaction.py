@@ -58,6 +58,22 @@ def _readable(text: str) -> str:
     return _INVISIBLE.sub("", plain)
 
 
+def contacts_in(text: str) -> frozenset[str]:
+    """Every email address and phone number written in the text, each as its hash.
+
+    Two spellings of one address or number give one hash, so they can be compared.
+    """
+    return frozenset(
+        _hashed(str(found.lastgroup), found.group()) for found in _CONTACT.finditer(_readable(text))
+    )
+
+
+def without_contacts(text: str) -> str:
+    """The whole text, with each email address and phone number replaced by its hash."""
+    plain = _readable(text)
+    return _CONTACT.sub(lambda found: _hashed(str(found.lastgroup), found.group()), plain)
+
+
 def redacted_text(text: str, text_chars: int) -> str:
     """Contact details replaced by hashes, then cut to length.
 

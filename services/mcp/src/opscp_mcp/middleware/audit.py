@@ -16,17 +16,19 @@ from collections.abc import Collection, Mapping
 import mcp.types as mt
 import structlog
 from fastmcp.exceptions import NotFoundError
+from fastmcp.server.dependencies import get_http_headers
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 from fastmcp.tools import Tool, ToolResult
 
 from opscp_common.errors import ErrorCode
 from opscp_common.hashing import content_hash
+from opscp_common.redaction import APPROVAL_ARGUMENT, redacted
 from opscp_mcp.container import Services
 from opscp_mcp.middleware.envelope import UNKNOWN_TOOL, content_bytes, refusal
 from opscp_mcp.ports.controls import AuditAction, AuditEntry
 from opscp_mcp.reliability.deadline import within
 from opscp_mcp.services.recording import offered
-from opscp_mcp.services.redaction import APPROVAL_ARGUMENT, redacted
+from opscp_mcp.services.runs import run_named_in
 from opscp_mcp.tools.runner import services_in
 
 _LOG = structlog.get_logger(__name__)
@@ -97,6 +99,7 @@ class Audit(Middleware):
         code = None if failure is None else _error_code(failure)
         denied = code == ErrorCode.PERMISSION_DENIED.value
         return AuditEntry(
+            run_id=run_named_in(get_http_headers()),
             actor_oid=caller.oid,
             actor_roles=tuple(sorted(caller.roles)),
             actor_kind="user",

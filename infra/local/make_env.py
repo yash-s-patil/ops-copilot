@@ -2,6 +2,7 @@
 
 The signing key stands in for the sign-in service. Tokens signed with it are accepted only
 by a server started with AUTH_MODE=dev, which a server refuses outside ENVIRONMENT=local.
+Of the programs that run, only the local issuer holds it.
 """
 
 import base64
@@ -18,6 +19,8 @@ MCP_AUDIENCE = "api://opscp-mcp"
 MCP_PUBLIC_URL = "http://127.0.0.1:8000"
 PAYMENTS_DEV_ISSUER = "http://payments-dev-issuer.localhost/"
 PAYMENTS_AUDIENCE = "api://opscp-payments"
+AGENT_AUDIENCE = "api://opscp-agent"
+AGENT_CLIENT_ID = "opscp-agent-api"
 KEY_BITS = 2048
 PUBLIC_EXPONENT = 65537
 
@@ -64,7 +67,7 @@ def main() -> None:
     storage_key = base64.b64encode(secrets.token_bytes(48)).decode()
     private_key, public_key = _signing_key()
     # The worker signs its own token locally. It is given a key of its own, so that the key
-    # that signs people in is held by nothing that runs.
+    # that signs people in is held only by the local issuer.
     payments_private_key, payments_public_key = _signing_key()
     lines = (
         "ENVIRONMENT=local",
@@ -88,6 +91,13 @@ def main() -> None:
         f"PAYMENTS_DEV_ISSUER={PAYMENTS_DEV_ISSUER}",
         f"PAYMENTS_DEV_PUBLIC_KEY={payments_public_key}",
         f"PAYMENTS_DEV_PRIVATE_KEY={payments_private_key}",
+        f"AGENT_API_AUDIENCE={AGENT_AUDIENCE}",
+        f"AGENT_API_CLIENT_ID={AGENT_CLIENT_ID}",
+        # What the agent proves itself to the local issuer with. Azure uses no secret.
+        f"AGENT_CLIENT_SECRET={secrets.token_hex(24)}",
+        f"AGENT_CANARY={secrets.token_hex(16)}",
+        # A password of its own, so that what the agent holds opens only its own database.
+        f"AGENT_DATABASE_PASSWORD={secrets.token_hex(24)}",
     )
     print("\n".join(lines))  # noqa: T201 -- the output is the file
 

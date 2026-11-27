@@ -7,7 +7,6 @@ such as a tool name or an argument, is written to the log.
 """
 
 import json
-import traceback
 from collections.abc import Collection
 
 import mcp.types as mt
@@ -22,28 +21,16 @@ from fastmcp.tools import ToolResult
 
 from opscp_common.errors import ErrorBody, InternalError, OpsError, ValidationFailedError
 from opscp_common.errors import NotFoundError as NothingByThatName
+from opscp_common.failures import chain_of, failure_site
 from opscp_common.hashing import JsonValue
-from opscp_mcp.services.redaction import NAMES_KEPT, is_argument_name
+from opscp_common.redaction import NAMES_KEPT, is_argument_name
 
 _LOG = structlog.get_logger(__name__)
 _PROTOCOL_ERRORS = (McpError, NotFoundError)
 _ENCODING = "utf-8"
-_FRAMES_LOGGED = 6
-_CHAIN_DEPTH = 8
 UNKNOWN_TOOL = "an unknown tool"
 UNKNOWN_RESOURCE = "an unknown resource"
 UNKNOWN_PROMPT = "an unknown prompt"
-
-
-def _chain(error: BaseException) -> list[BaseException]:
-    """The error and what led to it, outermost first."""
-    chain: list[BaseException] = []
-    current: BaseException | None = error
-    while current is not None and len(chain) < _CHAIN_DEPTH:
-        chain.append(current)
-        handled_first = None if current.__suppress_context__ else current.__context__
-        current = current.__cause__ or handled_first
-    return chain
 
 
 def _our_error(error: BaseException) -> OpsError | None:
@@ -66,7 +53,7 @@ def _rejected_fields(error: BaseException) -> list[JsonValue] | None:
         return None
     names = {
         str(issue["loc"][0])
-        for invalid in _chain(error)
+        for invalid in chain_of(error)
         if isinstance(invalid, pydantic.ValidationError)
         for issue in invalid.errors()
         if issue["loc"]
@@ -98,15 +85,8 @@ def reported(error: Exception, *, during: str) -> ErrorBody:
 
 def defect(error: BaseException, *, during: str) -> ErrorBody:
     """Logs a failure that is ours, by type and place, and gives the body that says only that."""
-    root = _chain(error)[-1]
-    _LOG.error("request_failed", during=during, error=type(root).__name__, where=_frames(root))
+    _LOG.error("request_failed", during=during, **failure_site(error))
     return InternalError().body()
-
-
-def _frames(error: BaseException) -> list[str]:
-    """Where the failure happened, without the exception's text, which may quote data."""
-    frames = traceback.extract_tb(error.__traceback__)[-_FRAMES_LOGGED:]
-    return [f"{frame.filename}:{frame.lineno} in {frame.name}" for frame in frames]
 
 
 def content_bytes(result: ToolResult) -> int:

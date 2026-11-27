@@ -1,0 +1,31 @@
+[project]
+name = "opscp-agent"
+version = "0.1.0"
+description = "The Ops Copilot agent: runs investigations with the signed-in person's permissions and none of its own."
+license = "Apache-2.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "alembic>=1.20.1",
+    "anyio>=4.16",
+    "asyncpg>=0.32.0",
+    "azure-identity>=1.17",
+    "cryptography>=50",
+    "fastapi>=0.133",
+    "fastmcp>=4.2",
+    "httpx2>=2.16",
+    "langgraph>=1.2",
+    "langgraph-checkpoint-postgres>=3.2",
+    "opscp-common[web]",
+    "psycopg[binary,pool]>=3.3",
+    "pydantic-settings>=2.16.3",
+    "pyyaml>=6.0.4",
+    "sqlalchemy[asyncio]>=2.1.9",
+    "uvicorn>=0.54",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+opscp-common = { workspace = true }

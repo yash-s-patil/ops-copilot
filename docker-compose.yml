@@ -6,6 +6,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run `make env` to create .env first}
+      AGENT_DATABASE_PASSWORD: ${AGENT_DATABASE_PASSWORD:?Run `make env` to create .env first}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -129,6 +130,67 @@ services:
       postgres:
         condition: service_healthy
       payments-sim:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  dev-issuer:
+    # Stands in for Microsoft Entra ID's token endpoint. It exists only in this file.
+    build:
+      context: .
+      dockerfile: infra/local/issuer/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      DEV_ISSUER: ${DEV_ISSUER:-}
+      DEV_ISSUER_PRIVATE_KEY: ${DEV_ISSUER_PRIVATE_KEY:-}
+      AGENT_API_AUDIENCE: ${AGENT_API_AUDIENCE:-}
+      AGENT_API_CLIENT_ID: ${AGENT_API_CLIENT_ID:-}
+      AGENT_CLIENT_SECRET: ${AGENT_CLIENT_SECRET:-}
+      MCP_API_AUDIENCE: ${MCP_API_AUDIENCE:-}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  agent:
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      # Its own database, role and password. None of them opens meridian, and it is given
+      # nothing for the storage.
+      DATABASE_HOST: postgres
+      DATABASE_NAME: copilot
+      DATABASE_USER: agent_app
+      DATABASE_PASSWORD: ${AGENT_DATABASE_PASSWORD:?Run `make env` to create .env first}
+      AUTH_MODE: dev
+      AGENT_API_AUDIENCE: ${AGENT_API_AUDIENCE:-}
+      AGENT_API_CLIENT_ID: ${AGENT_API_CLIENT_ID:-}
+      DEV_ISSUER: ${DEV_ISSUER:-}
+      DEV_ISSUER_PUBLIC_KEY: ${DEV_ISSUER_PUBLIC_KEY:-}
+      MCP_URL: http://mcp:8000
+      MCP_SCOPE: ${MCP_API_AUDIENCE:-}/.default
+      OBO_CREDENTIAL: secret
+      TOKEN_URL: http://dev-issuer:8090/token
+      AGENT_CLIENT_SECRET: ${AGENT_CLIENT_SECRET:-}
+      LLM_PROVIDER: scripted
+      CANARY: ${AGENT_CANARY:-}
+      # A round figure for local development. A deployment sets the rate it was given.
+      USD_INR_RATE: "90"
+      CHAOS_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+      dev-issuer:
         condition: service_healthy
     read_only: true
     cap_drop:

@@ -12,6 +12,11 @@
 !jobs/seed/pyproject.toml
 !services/payments/pyproject.toml
 !services/payments/src/**
+!services/agent/pyproject.toml
+!services/agent/src/**
+!infra/local/issuer/pyproject.toml
+!infra/local/issuer/src/**
+!config/pricing.yaml
 
 **/__pycache__
 **/*.pyc

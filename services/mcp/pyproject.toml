@@ -11,7 +11,7 @@ dependencies = [
     "cryptography>=50",
     "fastapi>=0.133",
     "fastmcp>=4.2",
-    "opscp-common[blob]",
+    "opscp-common[blob,web]",
     "sqlalchemy[asyncio]>=2.1.9",
     "uvicorn>=0.54",
 ]
