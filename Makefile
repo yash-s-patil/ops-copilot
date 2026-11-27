@@ -33,7 +33,7 @@ token: .env ## Print a local sign-in token for a demo user: make token WHO=priya
 	@uv run --no-project python infra/local/check_env.py
 	@uv run --env-file .env python infra/local/dev_token.py $(WHO) --for $(or $(FOR),agent)
 
-smoke: .env ## Check that the local MCP server and agent are up and know who is calling
+smoke: migrate ## Check that the local MCP server and agent are up and know who is calling
 	@uv run --no-project python infra/local/check_env.py
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/healthz
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/readyz
