@@ -12,7 +12,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ops Copilot",
+  title: { default: "Ops Copilot", template: "%s · Ops Copilot" },
   description: "Support inbox with an assistant that investigates tickets and proposes fixes.",
 };
 

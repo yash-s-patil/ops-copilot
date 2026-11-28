@@ -171,6 +171,12 @@ export function LiveTrace() {
     refetchInterval: limits.inboxRefreshMs,
   });
   const run = runs.data?.items.find((item) => item.run_id === runId) ?? null;
+  // A run that started since the list was read is not in it yet: read it again at once.
+  const unlisted = runId !== null && runs.isSuccess && run === null;
+  const { refetch } = runs;
+  useEffect(() => {
+    if (unlisted) void refetch();
+  }, [unlisted, runId, refetch]);
   return (
     <AdminPage
       title="Live trace"

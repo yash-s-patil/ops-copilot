@@ -16,7 +16,8 @@ jobs:
   python:
     name: Lint, types and tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The browser tests run one at a time against one fake agent: about ten minutes of this.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

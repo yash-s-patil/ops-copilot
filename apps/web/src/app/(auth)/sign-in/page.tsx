@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { Layers } from "lucide-react";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { signIn, signInProvider } from "@/auth";
 import { DEMO_USERS, isDemoUser } from "@/server/demo-users";
 import { settings } from "@/server/settings";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 const FAILED = "/sign-in?failed=1";
 const BUTTON =

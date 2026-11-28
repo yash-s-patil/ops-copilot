@@ -1,8 +1,14 @@
 "use client";
 
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  onlineManager,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Rail } from "@/components/shell/rail";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -74,6 +80,8 @@ export function AppShell({ me, limits, signOut, children }: Props) {
   const [ended, setEnded] = useState(false);
   const onSignInEnded = useCallback(() => setEnded(true), []);
   const [client] = useState(() => queryClient(limits, onSignInEnded));
+  // Reads are stopped while signing out; a new session starts with them on again.
+  useEffect(() => onlineManager.setOnline(true), []);
   return (
     <QueryClientProvider client={client}>
       <SessionProvider me={me} limits={limits} onSignInEnded={onSignInEnded}>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { useQuery } from "@tanstack/react-query";
+import { onlineManager, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Activity, Check, Inbox, Layers, List, MessageSquare, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -127,7 +127,23 @@ function ThemeChoice() {
   );
 }
 
+const DRAIN_STEP_MS = 50;
+
+/**
+ * Stops every read and waits for those already on their way before the session ends. An
+ * answer that arrived after signing out would carry the session cookie again, and the
+ * person would still be signed in.
+ */
+async function leave(client: QueryClient, signOut: () => void): Promise<void> {
+  onlineManager.setOnline(false);
+  while (client.isFetching() > 0 || client.isMutating() > 0) {
+    await new Promise((settle) => setTimeout(settle, DRAIN_STEP_MS));
+  }
+  signOut();
+}
+
 function UserBlock({ signOut }: { signOut: () => void }) {
+  const client = useQueryClient();
   const { me } = useSession();
   const region = regionLabel(me);
   return (
@@ -160,7 +176,7 @@ function UserBlock({ signOut }: { signOut: () => void }) {
           </Menu.Label>
           <ThemeChoice />
           <Menu.Separator className="my-1 h-px bg-line" />
-          <Menu.Item className={MENU_ITEM} onSelect={signOut}>
+          <Menu.Item className={MENU_ITEM} onSelect={() => void leave(client, signOut)}>
             Sign out
           </Menu.Item>
         </Menu.Content>
