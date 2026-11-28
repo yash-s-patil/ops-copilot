@@ -8,10 +8,10 @@ more; a second 401 means the person must sign in again.
 import asyncio
 import json
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager, suppress
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, NoReturn, cast
 from uuid import UUID
 
@@ -134,6 +134,33 @@ def _error_body(result: CallToolResult) -> ErrorBody:
     return InternalError().body()
 
 
+RETRY_AFTER_KEY = "retry_after_seconds"
+
+
+@dataclass(frozen=True, slots=True)
+class Patience:
+    """How long a run waits when the server says the person has asked too often.
+
+    A screen is answered at once and the browser waits instead. A run has work half done,
+    so it waits the time the server names, up to `max_s`, at most `waits` times a request.
+    """
+
+    waits: int
+    max_s: int
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
+
+    def named_by(self, refusal: ErrorBody | None) -> int | None:
+        if refusal is None or refusal.code != ErrorCode.RATE_LIMITED:
+            return None
+        asked = refusal.details.get(RETRY_AFTER_KEY)
+        if isinstance(asked, bool) or not isinstance(asked, int):
+            return None
+        return asked if 0 <= asked <= self.max_s else None
+
+
+NO_PATIENCE = Patience(waits=0, max_s=0)
+
+
 def _rest_error(response: httpx2.Response) -> McpCallError:
     try:
         body = ErrorBody.model_validate_json(response.content)
@@ -143,10 +170,17 @@ def _rest_error(response: httpx2.Response) -> McpCallError:
 
 
 class HttpMcpSession:
-    def __init__(self, client: Client[Any], http: httpx2.AsyncClient, auth: _PersonAuth) -> None:
+    def __init__(
+        self,
+        client: Client[Any],
+        http: httpx2.AsyncClient,
+        auth: _PersonAuth,
+        patience: Patience = NO_PATIENCE,
+    ) -> None:
         self._unconnected = client
         self._http = http
         self._auth = auth
+        self._patience = patience
         self._connecting = asyncio.Lock()
         self._connected = False
 
@@ -197,6 +231,31 @@ class HttpMcpSession:
         )
 
     async def call(self, tool: str, arguments: Json) -> ToolOutcome:
+        outcome = await self._call_once(tool, arguments)
+        refreshed = outcome.sign_in_refreshed
+        for _ in range(self._patience.waits):
+            wait_s = self._patience.named_by(outcome.error)
+            if wait_s is None:
+                break
+            await self._patience.sleep(wait_s)
+            outcome = await self._call_once(tool, arguments)
+            refreshed = refreshed or outcome.sign_in_refreshed
+        # A sign-in renewed on an attempt that was then refused is still a renewal.
+        return replace(outcome, sign_in_refreshed=refreshed)
+
+    async def _unhurried[T](self, ask: Callable[[], Awaitable[T]]) -> T:
+        """A request the rate limit refused did nothing, so it is safe to ask again."""
+        for _ in range(self._patience.waits):
+            try:
+                return await ask()
+            except McpCallError as refused:
+                wait_s = self._patience.named_by(refused.body)
+                if wait_s is None:
+                    raise
+            await self._patience.sleep(wait_s)
+        return await ask()
+
+    async def _call_once(self, tool: str, arguments: Json) -> ToolOutcome:
         note = _CallNote()
         marker = _CALL.set(note)
         started = time.monotonic()
@@ -244,6 +303,9 @@ class HttpMcpSession:
         return versions
 
     async def resource(self, uri: str) -> Reference:
+        return await self._unhurried(lambda: self._resource_once(uri))
+
+    async def _resource_once(self, uri: str) -> Reference:
         try:
             contents = await (await self._mcp()).read_resource(uri)
         except _MAY_BE_THE_CONNECTION as error:
@@ -262,6 +324,9 @@ class HttpMcpSession:
         raise McpCallError(0, InternalError().body())
 
     async def prompt(self, name: str, arguments: dict[str, str]) -> str:
+        return await self._unhurried(lambda: self._prompt_once(name, arguments))
+
+    async def _prompt_once(self, name: str, arguments: dict[str, str]) -> str:
         try:
             result = await (await self._mcp()).get_prompt(name, arguments)
         except _MAY_BE_THE_CONNECTION as error:
@@ -276,6 +341,9 @@ class HttpMcpSession:
         )
 
     async def _rest(self, method: str, path: str, body: Json | None = None) -> Json:
+        return await self._unhurried(lambda: self._rest_once(method, path, body))
+
+    async def _rest_once(self, method: str, path: str, body: Json | None = None) -> Json:
         try:
             response = await self._http.request(method, path, json=body)
         except _MAY_BE_THE_CONNECTION as error:
@@ -339,11 +407,13 @@ class McpGateway:
         tokens: TokenClient,
         *,
         timeout_s: int,
+        run_patience: Patience = NO_PATIENCE,
         http_factory: HttpFactory = httpx2.AsyncClient,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._tokens = tokens
         self._timeout_s = timeout_s
+        self._run_patience = run_patience
         self._http_factory = http_factory
 
     def session(
@@ -361,7 +431,8 @@ class McpGateway:
             async with self._http_factory(
                 base_url=self._base_url, auth=auth, timeout=httpx2.Timeout(self._timeout_s)
             ) as http:
-                session = HttpMcpSession(client, http, auth)
+                patience = NO_PATIENCE if run_id is None else self._run_patience
+                session = HttpMcpSession(client, http, auth, patience)
                 try:
                     yield session
                 finally:

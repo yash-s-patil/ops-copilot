@@ -98,6 +98,11 @@ def main() -> None:
         f"AGENT_CANARY={secrets.token_hex(16)}",
         # A password of its own, so that what the agent holds opens only its own database.
         f"AGENT_DATABASE_PASSWORD={secrets.token_hex(24)}",
+        "WEB_CLIENT_ID=opscp-web",
+        # What the web application proves itself to the local issuer with, and the key its
+        # session cookie is encrypted with. Azure generates both.
+        f"WEB_CLIENT_SECRET={secrets.token_hex(24)}",
+        f"WEB_AUTH_SECRET={secrets.token_hex(32)}",
     )
     print("\n".join(lines))  # noqa: T201 -- the output is the file
 

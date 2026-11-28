@@ -38,7 +38,7 @@ from opscp_agent.graph.build import build_graph
 from opscp_agent.llm.base import ChatModel
 from opscp_agent.llm.dependable import Dependable
 from opscp_agent.llm.scripted import ScriptedModel
-from opscp_agent.mcp_client.client import McpGateway
+from opscp_agent.mcp_client.client import McpGateway, Patience
 from opscp_agent.mcp_client.resource_cache import ResourceCache
 from opscp_agent.runs.manager import RunManager, Workings
 from opscp_agent.settings import SERVICE_NAME, AgentSettings, FederatedExchange, SecretExchange
@@ -152,7 +152,13 @@ def production(settings: AgentSettings, database: DatabaseSettings, limits: Limi
                     kept=limits.mcp_client.tokens_kept,
                 )
                 gateway = McpGateway(
-                    str(settings.mcp_url), tokens, timeout_s=limits.mcp_client.timeout_s
+                    str(settings.mcp_url),
+                    tokens,
+                    timeout_s=limits.mcp_client.timeout_s,
+                    run_patience=Patience(
+                        waits=limits.mcp_client.rate_waits,
+                        max_s=limits.mcp_client.rate_wait_max_s,
+                    ),
                 )
                 store = PostgresRunStore(engine)
                 bus = Bus()

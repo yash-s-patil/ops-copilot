@@ -17,6 +17,12 @@
 !infra/local/issuer/pyproject.toml
 !infra/local/issuer/src/**
 !config/pricing.yaml
+!apps/web/package.json
+!apps/web/pnpm-lock.yaml
+!apps/web/pnpm-workspace.yaml
+!apps/web/next.config.ts
+!apps/web/tsconfig.json
+!apps/web/src/**
 
 **/__pycache__
 **/*.pyc

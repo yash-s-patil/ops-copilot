@@ -7,6 +7,7 @@ TF_ROOTS := $(TF_DIR)/state-bootstrap
 CHECKOV_VERSION := 3.4.10
 MCP_URL := http://127.0.0.1:8000
 AGENT_URL := http://127.0.0.1:8001
+WEB_URL := http://127.0.0.1:3000
 
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
 
@@ -25,7 +26,7 @@ install: ## Install every workspace package and tool at the locked versions
 
 env: .env ## Create .env for local development if it does not exist
 
-dev: .env ## Build and start PostgreSQL, Azurite, the MCP server, the agent, the payments worker and the local stand-ins
+dev: .env ## Build and start PostgreSQL, Azurite, the MCP server, the agent, the payments worker, the local stand-ins and the web application
 	@uv run --no-project python infra/local/check_env.py
 	docker compose up --build --detach --wait
 
@@ -33,14 +34,15 @@ token: .env ## Print a local sign-in token for a demo user: make token WHO=priya
 	@uv run --no-project python infra/local/check_env.py
 	@uv run --env-file .env python infra/local/dev_token.py $(WHO) --for $(or $(FOR),agent)
 
-smoke: migrate ## Check that the local MCP server and agent are up and know who is calling
+smoke: migrate ## Check that the local MCP server, agent and web application are up and that the first two know who is calling
 	@uv run --no-project python infra/local/check_env.py
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/healthz
 	curl --fail --silent --show-error --max-time 5 $(MCP_URL)/readyz
 	curl --fail --silent --show-error --max-time 5 $(AGENT_URL)/healthz
+	curl --fail --silent --show-error --max-time 5 --output /dev/null $(WEB_URL)/sign-in
 	uv run --env-file .env python infra/local/smoke.py $(MCP_URL) $(AGENT_URL)
 
-dev-down: ## Stop the local backends (data volumes are kept)
+dev-down: ## Stop the local backends and the web application (data volumes are kept)
 	docker compose down
 
 dev-reset: ## Delete the local data volumes and .env, then start again from empty
@@ -63,6 +65,7 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uv run pyright
 	$(WEB) run lint
 	$(WEB) run typecheck
+	$(WEB) run gen:api:check
 	$(WEB) run format:check
 	terraform fmt -check -recursive $(TF_DIR)
 	@for root in $(TF_ROOTS); do \
@@ -76,6 +79,7 @@ lint: ## Formatting, lint rules, repository hygiene and strict type checking
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/payments/Dockerfile --framework dockerfile --quiet --compact
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file services/agent/Dockerfile --framework dockerfile --quiet --compact
 	uvx --from checkov==$(CHECKOV_VERSION) checkov --file infra/local/issuer/Dockerfile --framework dockerfile --quiet --compact
+	uvx --from checkov==$(CHECKOV_VERSION) checkov --file apps/web/Dockerfile --framework dockerfile --quiet --compact
 
 format: ## Apply formatting and safe lint fixes
 	uv run ruff format .
@@ -89,8 +93,9 @@ test: ## Unit and contract tests with coverage (no backends needed)
 test-integration: ## Tests against the local PostgreSQL and Azurite started by `make dev`
 	uv run pytest -m integration
 
-test-web: ## Web unit tests
+test-web: ## Web unit tests, then the browser tests
 	$(WEB) run test
+	$(WEB) exec playwright test
 
 secrets: ## Scan every commit for secrets
 	docker run --rm --volume "$(CURDIR)":/repo:ro \

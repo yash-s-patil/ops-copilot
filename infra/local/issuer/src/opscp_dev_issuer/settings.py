@@ -25,6 +25,8 @@ class IssuerSettings(BaseSettings):
     agent_api_client_id: str = Field(min_length=1)
     agent_client_secret: SecretStr = Field(min_length=_SECRET_CHARS_MIN)
     mcp_api_audience: str = Field(min_length=1)
+    web_client_id: str = Field(min_length=1)
+    web_client_secret: SecretStr = Field(min_length=_SECRET_CHARS_MIN)
 
     @model_validator(mode="after")
     def _key_is_usable(self) -> Self:

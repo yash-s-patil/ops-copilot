@@ -23,4 +23,92 @@
   --color-warn-wash: var(--warn-wash);
   --color-bad: var(--bad);
   --color-bad-wash: var(--bad-wash);
+  --color-transparent: transparent;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* The type scale of the product: label, meta, interface, conversation, title, figure. */
+  --text-*: initial;
+  --text-label: 11px;
+  --text-fine: 11.5px;
+  --text-meta: 12px;
+  --text-step: 12.5px;
+  --text-ui: 13px;
+  --text-chat: 14px;
+  --text-title: 15px;
+  --text-figure: 19px;
+
+  --radius-*: initial;
+  --radius-xs: 4px;
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-composer: 10px;
+  --radius-bubble: 12px;
+  --radius-full: 9999px;
+
+  /* One pane at a time below 720; icon rail and a details drawer below 1280. */
+  --breakpoint-*: initial;
+  --breakpoint-sm: 720px;
+  --breakpoint-md: 960px;
+  --breakpoint-lg: 1280px;
+
+  --shadow-*: initial;
+  /* The only shadow in the product: the details drawer when it overlays the conversation. */
+  --shadow-drawer: -10px 0 30px rgb(0 0 0 / 0.14);
+
+  --animate-spin: spin 0.7s linear infinite;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-radius: 4px;
+  }
+
+  summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+@utility safe-x {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }

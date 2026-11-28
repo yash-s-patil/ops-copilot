@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from opscp_common.logging import configure_logging
-from opscp_dev_issuer.exchange import Client, Exchange, RefusedError
+from opscp_dev_issuer.exchange import Client, Exchange, RefusedError, SignInClient
 from opscp_dev_issuer.settings import SERVICE_NAME, IssuerSettings
 
 TOKEN_PATH = "/token"  # noqa: S105 -- a path
@@ -35,7 +35,7 @@ def build_app(exchange: Exchange) -> FastAPI:
         fields = parse_qs((await request.body()).decode("utf-8", errors="replace"))
         form = {name: values[0] for name, values in fields.items() if len(values) == 1}
         try:
-            issued = exchange.on_behalf_of(form)
+            issued = exchange.issue(form)
         except RefusedError as refused:
             return _refused(refused)
         _LOG.info("token_issued", scope=issued.scope)
@@ -70,4 +70,11 @@ def create_app() -> FastAPI:
         audience=settings.agent_api_audience,
         downstream_audience=settings.mcp_api_audience,
     )
-    return build_app(Exchange(settings.dev_issuer, settings.private_key_pem(), client))
+    sign_in = SignInClient(
+        client_id=settings.web_client_id,
+        secret=settings.web_client_secret.get_secret_value(),
+        audience=settings.agent_api_audience,
+    )
+    return build_app(
+        Exchange(settings.dev_issuer, settings.private_key_pem(), client, sign_in=sign_in)
+    )

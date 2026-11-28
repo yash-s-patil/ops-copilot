@@ -58,10 +58,10 @@ jobs:
       - name: Python tests
         run: make test
 
-      - name: Build and start the local backends and services
+      - name: Build and start the local backends, services and web application
         run: make dev
 
-      - name: Smoke test the MCP server and the agent
+      - name: Smoke test the MCP server, the agent and the web application
         run: make smoke
 
       - name: Database and storage tests
@@ -69,6 +69,21 @@ jobs:
 
       - name: Migrate and seed the local database
         run: make seed
+
+      - name: Restore the browser for the web tests
+        id: playwright
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/web/pnpm-lock.yaml') }}
+
+      - name: Install the browser for the web tests
+        if: steps.playwright.outputs.cache-hit != 'true'
+        run: pnpm --dir apps/web exec playwright install --with-deps chromium
+
+      - name: Install the system libraries the cached browser needs
+        if: steps.playwright.outputs.cache-hit == 'true'
+        run: pnpm --dir apps/web exec playwright install-deps chromium
 
       - name: Web tests
         run: make test-web
