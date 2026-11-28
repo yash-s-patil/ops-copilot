@@ -216,6 +216,8 @@ class McpClientLimits(_Group):
     timeout_s: PositiveInt
     token_timeout_s: PositiveInt
     tokens_kept: PositiveInt
+    rate_waits: PositiveInt
+    rate_wait_max_s: PositiveInt
 
 
 class RunsLimits(_Group):
@@ -253,6 +255,11 @@ class UiLimits(_Group):
     refund_poll_s: PositiveInt
     refund_poll_max_duration_s: PositiveInt
     step_summary_chars: PositiveInt
+    retries: PositiveInt
+    retry_wait_ms: PositiveInt
+    busy_retries: PositiveInt
+    busy_wait_s: PositiveInt
+    reconnect_max_s: PositiveInt
 
 
 class PaymentsLimits(_Group):

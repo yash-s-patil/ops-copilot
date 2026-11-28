@@ -76,7 +76,13 @@ APPENDIX_A: dict[str, dict[str, Any]] = {
         "retry_after_max_s": 20,
         "chars_per_token": 4,
     },
-    "mcp_client": {"timeout_s": 10, "token_timeout_s": 5, "tokens_kept": 256},
+    "mcp_client": {
+        "timeout_s": 10,
+        "token_timeout_s": 5,
+        "tokens_kept": 256,
+        "rate_waits": 3,
+        "rate_wait_max_s": 5,
+    },
     "runs": {
         "list_max": 25,
         "lease_s": 30,
@@ -95,6 +101,11 @@ APPENDIX_A: dict[str, dict[str, Any]] = {
         "refund_poll_s": 3,
         "refund_poll_max_duration_s": 120,
         "step_summary_chars": 300,
+        "retries": 1,
+        "retry_wait_ms": 1000,
+        "busy_retries": 3,
+        "busy_wait_s": 5,
+        "reconnect_max_s": 15,
     },
     "payments": {
         "poll_interval_s": 2,

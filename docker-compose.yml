@@ -150,6 +150,11 @@ services:
       AGENT_API_CLIENT_ID: ${AGENT_API_CLIENT_ID:-}
       AGENT_CLIENT_SECRET: ${AGENT_CLIENT_SECRET:-}
       MCP_API_AUDIENCE: ${MCP_API_AUDIENCE:-}
+      WEB_CLIENT_ID: ${WEB_CLIENT_ID:-}
+      WEB_CLIENT_SECRET: ${WEB_CLIENT_SECRET:-}
+    ports:
+      # For the web application when it is run on this machine with `pnpm dev`.
+      - "127.0.0.1:8090:8090"
     read_only: true
     cap_drop:
       - ALL
@@ -189,6 +194,37 @@ services:
       postgres:
         condition: service_healthy
       mcp:
+        condition: service_healthy
+      dev-issuer:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      AUTH_MODE: dev
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:3000
+      AUTH_SECRET: ${WEB_AUTH_SECRET:-}
+      AGENT_URL: http://agent:8001
+      AGENT_SCOPE: ${AGENT_API_AUDIENCE:-}/Agent.Access
+      DEV_TOKEN_URL: http://dev-issuer:8090/token
+      WEB_CLIENT_ID: ${WEB_CLIENT_ID:-}
+      WEB_CLIENT_SECRET: ${WEB_CLIENT_SECRET:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    tmpfs:
+      # Next.js writes its cache beside the server, and the root filesystem is read-only.
+      - /app/.next/cache
+    depends_on:
+      agent:
         condition: service_healthy
       dev-issuer:
         condition: service_healthy

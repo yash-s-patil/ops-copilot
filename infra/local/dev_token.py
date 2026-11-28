@@ -12,37 +12,19 @@ server.
 import argparse
 import base64
 import time
-from dataclasses import dataclass
 
 from joserfc import jwt
 from joserfc.jwk import RSAKey
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from opscp_dev_issuer.users import DEMO_USERS, DemoUser
+
 LIFETIME_S = 3600
 ALGORITHM = "RS256"
 SCOPE = "Mcp.Access"
 AGENT_SCOPE = "Agent.Access"
 MCP, AGENT = "mcp", "agent"
-
-
-@dataclass(frozen=True, slots=True)
-class DemoUser:
-    oid: str
-    name: str
-    role: str
-    region: str | None
-
-
-DEMO_USERS = {
-    "priya": DemoUser("0f1e2d3c-0001-4000-8000-000000000001", "Priya Nair", "Support.L1", "west"),
-    "rohan": DemoUser("0f1e2d3c-0002-4000-8000-000000000002", "Rohan Iyer", "Support.L1", "south"),
-    "arjun": DemoUser("0f1e2d3c-0003-4000-8000-000000000003", "Arjun Mehta", "Support.L2", "west"),
-    "kavita": DemoUser(
-        "0f1e2d3c-0004-4000-8000-000000000004", "Kavita Rao", "Support.Supervisor", "*"
-    ),
-    "sam": DemoUser("0f1e2d3c-0005-4000-8000-000000000005", "Sam Admin", "Platform.Admin", None),
-}
 
 
 def claims(

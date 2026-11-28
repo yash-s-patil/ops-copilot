@@ -1,7 +1,6 @@
-export default function Home() {
-  return (
-    <main>
-      <h1>Ops Copilot</h1>
-    </main>
-  );
+import { redirect } from "next/navigation";
+import { currentUser, homeOf } from "@/server/agent";
+
+export default async function Home() {
+  redirect(homeOf(await currentUser()));
 }

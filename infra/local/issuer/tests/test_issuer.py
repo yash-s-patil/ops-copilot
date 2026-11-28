@@ -11,13 +11,15 @@ from joserfc.jwk import RSAKey
 from pydantic import ValidationError
 
 from opscp_dev_issuer.app import TOKEN_PATH, build_app, create_app
-from opscp_dev_issuer.exchange import GRANT_TYPE, Client, Exchange
+from opscp_dev_issuer.exchange import DEMO_GRANT, GRANT_TYPE, Client, Exchange, SignInClient
 from opscp_dev_issuer.settings import IssuerSettings
 
 ISSUER = "http://dev-issuer.localhost/"
 AGENT = "api://opscp-agent"
 MCP = "api://opscp-mcp"
 SECRET = "a-client-secret-of-thirty-two-chars!"  # noqa: S105 -- made for the test
+WEB = "opscp-web"
+WEB_SECRET = "the-web-client-secret-for-a-test!!"  # noqa: S105 -- made for the test
 NOW = 1_800_000_000
 KEY = RSAKey.generate_key(2048, private=True)
 OTHER_KEY = RSAKey.generate_key(2048, private=True)
@@ -58,9 +60,24 @@ def http() -> TestClient:
         client_id="opscp-agent-api", secret=SECRET, audience=AGENT, downstream_audience=MCP
     )
     exchange = Exchange(
-        ISSUER, KEY.as_pem(private=True).decode("ascii"), client, now=lambda: float(NOW)
+        ISSUER,
+        KEY.as_pem(private=True).decode("ascii"),
+        client,
+        now=lambda: float(NOW),
+        sign_in=SignInClient(client_id=WEB, secret=WEB_SECRET, audience=AGENT),
     )
     return TestClient(build_app(exchange))
+
+
+def _sign_in(**changed: Any) -> dict[str, str]:
+    form = {
+        "grant_type": DEMO_GRANT,
+        "client_id": WEB,
+        "client_secret": WEB_SECRET,
+        "scope": f"{AGENT}/Agent.Access",
+        "user": "priya",
+    } | changed
+    return {name: value for name, value in form.items() if value is not None}
 
 
 def test_a_person_s_token_is_exchanged_for_one_that_names_them_to_the_mcp_server(
@@ -174,6 +191,8 @@ ENVIRONMENT = {
     "AGENT_API_CLIENT_ID": "opscp-agent-api",
     "AGENT_CLIENT_SECRET": SECRET,
     "MCP_API_AUDIENCE": MCP,
+    "WEB_CLIENT_ID": WEB,
+    "WEB_CLIENT_SECRET": WEB_SECRET,
 }
 
 
@@ -200,6 +219,8 @@ def test_the_issuer_starts_from_the_environment_on_a_laptop(
         ({"ENVIRONMENT": "demo"}, "environment"),
         ({"ENVIRONMENT": "prod"}, "environment"),
         ({"AGENT_CLIENT_SECRET": "short"}, "agent_client_secret"),
+        ({"WEB_CLIENT_SECRET": "short"}, "web_client_secret"),
+        ({"WEB_CLIENT_ID": ""}, "web_client_id"),
         ({"DEV_ISSUER_PRIVATE_KEY": "not base64!"}, "base64-encoded PEM RSA private key"),
         (
             {"DEV_ISSUER_PRIVATE_KEY": base64.b64encode(KEY.as_pem(private=False)).decode()},
@@ -217,3 +238,82 @@ def test_the_issuer_refuses_to_start_anywhere_but_a_laptop_or_without_its_key(
         IssuerSettings()  # pyright: ignore[reportCallIssue] -- fields come from the environment
 
     assert SECRET not in str(refused.value)
+    assert WEB_SECRET not in str(refused.value)
+
+
+@pytest.mark.parametrize(
+    ("user", "name", "roles", "region"),
+    [
+        ("priya", "Priya Nair", ["Support.L1"], "west"),
+        ("arjun", "Arjun Mehta", ["Support.L2"], "west"),
+        ("kavita", "Kavita Rao", ["Support.Supervisor"], "*"),
+        ("sam", "Sam Admin", ["Platform.Admin"], None),
+    ],
+)
+def test_the_web_application_signs_a_demo_user_in_for_the_agent(
+    http: TestClient, user: str, name: str, roles: list[str], region: str | None
+) -> None:
+    response = http.post(TOKEN_PATH, data=_sign_in(user=user))
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    body = response.json()
+    assert (body["token_type"], body["expires_in"]) == ("Bearer", 3600)
+    claims = jwt.decode(body["access_token"], KEY, algorithms=["RS256"]).claims
+    assert (claims["iss"], claims["aud"], claims["azp"]) == (ISSUER, AGENT, WEB)
+    assert (claims["name"], claims["roles"], claims.get("region")) == (name, roles, region)
+    assert (claims["scp"], claims["sub"]) == ("Agent.Access", claims["oid"])
+    assert (claims["iat"], claims["exp"]) == (NOW, NOW + 3600)
+
+
+def test_a_demo_user_s_token_can_be_exchanged_like_any_person_s(http: TestClient) -> None:
+    signed_in = http.post(TOKEN_PATH, data=_sign_in()).json()["access_token"]
+
+    exchanged = http.post(TOKEN_PATH, data=_form(assertion=signed_in))
+
+    assert exchanged.status_code == 200
+    claims = jwt.decode(exchanged.json()["access_token"], KEY, algorithms=["RS256"]).claims
+    assert (claims["aud"], claims["name"]) == (MCP, "Priya Nair")
+
+
+@pytest.mark.parametrize(
+    ("changed", "status", "error"),
+    [
+        ({"user": "mallory"}, 400, "invalid_grant"),
+        ({"user": None}, 400, "invalid_grant"),
+        ({"client_secret": "x" * 32}, 401, "invalid_client"),
+        ({"client_secret": None}, 401, "invalid_client"),
+        ({"client_id": "opscp-agent-api", "client_secret": SECRET}, 401, "invalid_client"),
+        ({"scope": f"{MCP}/.default"}, 400, "invalid_scope"),
+        ({"scope": None}, 400, "invalid_scope"),
+    ],
+)
+def test_a_demo_sign_in_that_is_not_the_web_application_s_is_refused(
+    http: TestClient, changed: dict[str, Any], status: int, error: str
+) -> None:
+    response = http.post(TOKEN_PATH, data=_sign_in(**changed))
+
+    assert (response.status_code, response.json()["error"]) == (status, error)
+    assert "access_token" not in response.json()
+
+
+def test_the_agent_s_own_client_cannot_sign_a_demo_user_in_for_the_mcp_server(
+    http: TestClient,
+) -> None:
+    response = http.post(
+        TOKEN_PATH,
+        data=_sign_in(client_id="opscp-agent-api", client_secret=SECRET, scope=f"{MCP}/Mcp.Access"),
+    )
+
+    assert response.status_code == 401
+
+
+def test_an_issuer_without_a_sign_in_client_offers_no_demo_sign_in() -> None:
+    client = Client(
+        client_id="opscp-agent-api", secret=SECRET, audience=AGENT, downstream_audience=MCP
+    )
+    exchange = Exchange(ISSUER, KEY.as_pem(private=True).decode("ascii"), client)
+
+    response = TestClient(build_app(exchange)).post(TOKEN_PATH, data=_sign_in())
+
+    assert (response.status_code, response.json()["error"]) == (400, "unsupported_grant_type")

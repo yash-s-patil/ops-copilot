@@ -27,7 +27,7 @@ from opscp_agent.graph.build import build_graph
 from opscp_agent.llm.base import ChatModel
 from opscp_agent.llm.scripted import ScriptedModel
 from opscp_agent.main import build_app
-from opscp_agent.mcp_client.client import McpGateway
+from opscp_agent.mcp_client.client import NO_PATIENCE, McpGateway, Patience
 from opscp_agent.mcp_client.resource_cache import ResourceCache
 from opscp_agent.runs.manager import RunManager, Workings
 from opscp_agent.runs.store import RunStore
@@ -206,6 +206,7 @@ async def desk(  # noqa: PLR0913 -- each is one part a test may replace
     backend: McpBackend | None = None,
     route_timeout_s: int = WAIT_S,
     storage_ready: Callable[[], Awaitable[None]] | None = None,
+    run_patience: Patience = NO_PATIENCE,
 ) -> AsyncGenerator[Desk]:
     """`mcp_handler` may answer a request in the MCP server's place, by returning a response.
 
@@ -243,6 +244,7 @@ async def desk(  # noqa: PLR0913 -- each is one part a test may replace
         MCP_URL,
         TokenClient(issuer, refresh_before_s=limits.token.refresh_before_expiry_s, kept=16),
         timeout_s=limits.mcp_client.timeout_s,
+        run_patience=run_patience,
         http_factory=http_factory,
     )
 
